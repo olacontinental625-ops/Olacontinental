@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "Customer real estate brief and contact submission",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the client",
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone or WhatsApp contact number",
+          "maxLength": 30
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the client",
+          "maxLength": 100
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Intended real estate purpose (Buy, Invest, Rent, etc.)",
+          "maxLength": 50
+        },
+        "propertyType": {
+          "type": "string",
+          "description": "Preferred property category",
+          "maxLength": 50
+        },
+        "corridor": {
+          "type": "string",
+          "description": "Preferred geographical corridor",
+          "maxLength": 100
+        },
+        "budget": {
+          "type": "string",
+          "description": "Target budget range",
+          "maxLength": 50
+        },
+        "message": {
+          "type": "string",
+          "description": "Client message or specific notes",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of submission",
+          "maxLength": 50
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the inquiry",
+          "maxLength": 30
+        }
+      },
+      "required": ["name", "phone"]
+    },
+    "ViewingRequest": {
+      "title": "ViewingRequest",
+      "description": "Inspection appointment booking for site tour or diaspora video walkthrough",
+      "type": "object",
+      "properties": {
+        "propertyId": {
+          "type": "string",
+          "description": "Identifier of the property to inspect",
+          "maxLength": 100
+        },
+        "propertyTitle": {
+          "type": "string",
+          "description": "Title of the property",
+          "maxLength": 200
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Full name of the inspecting client",
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "WhatsApp contact number",
+          "maxLength": 30
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address",
+          "maxLength": 100
+        },
+        "preferredDate": {
+          "type": "string",
+          "description": "Scheduled inspection date",
+          "maxLength": 50
+        },
+        "inspectionType": {
+          "type": "string",
+          "description": "Walkthrough format (Physical On-Site Tuesday, Diaspora 4K Video, etc.)",
+          "maxLength": 100
+        },
+        "notes": {
+          "type": "string",
+          "description": "Specific questions or beacon verification requests",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 50
+        },
+        "status": {
+          "type": "string",
+          "description": "Appointment status",
+          "maxLength": 30
+        }
+      },
+      "required": ["clientName", "phone", "preferredDate"]
+    },
+    "PropertyReview": {
+      "title": "PropertyReview",
+      "description": "Physical inspection note and rating from verified clients and surveyors",
+      "type": "object",
+      "properties": {
+        "propertyId": {
+          "type": "string",
+          "description": "Property reference id",
+          "maxLength": 100
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client or surveyor",
+          "maxLength": 100
+        },
+        "rating": {
+          "type": "number",
+          "description": "Inspection rating from 1 to 5"
+        },
+        "inspectionDate": {
+          "type": "string",
+          "description": "Date or period of the physical walkthrough",
+          "maxLength": 50
+        },
+        "comment": {
+          "type": "string",
+          "description": "Field observation and commentary",
+          "maxLength": 1000
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Whether the inspection is verified by the firm"
+        }
+      },
+      "required": ["clientName", "rating", "comment"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Collection of client briefs and inquiry leads"
+    },
+    "/viewings/{viewingId}": {
+      "schema": "ViewingRequest",
+      "description": "Collection of scheduled physical and video inspection appointments"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "PropertyReview",
+      "description": "Collection of verified inspection reviews and surveyor field notes"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function for document identifiers
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    // Leads Collection: Public inquiry submissions and broker review
+    match /leads/{leadId} {
+      allow read, write: if true;
+    }
+
+    // Viewing Appointments Collection: Scheduled site visits and live video tours
+    match /viewings/{viewingId} {
+      allow read, write: if true;
+    }
+
+    // Property Reviews Collection: Client feedback, ratings, and field notes
+    match /reviews/{reviewId} {
+      allow read, write: if true;
+    }
+
+    // Direct Contacts & Project Quotes Collection
+    match /contacts/{contactId} {
+      allow read, write: if true;
+    }
+
+    // Inquiries Collection
+    match /inquiries/{inquiryId} {
+      allow read, write: if true;
+    }
+
+    // Connectivity, verification, and diagnostics collection
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Enable access across all collections and documents
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

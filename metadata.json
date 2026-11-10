@@ -1,0 +1,6 @@
+{
+  "name": "Ola Continental Properties & Associates",
+  "description": "Verified real estate holdings, student hostels, executive duplexes, commercial plots, and farmland in Ogbomoso & Lagos since 2006.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
