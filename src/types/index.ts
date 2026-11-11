@@ -1,4 +1,4 @@
-export type PageType = 'home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact';
+export type PageType = 'home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'pay';
 
 export type PropertyPurpose = 'All' | 'Buy' | 'Rent' | 'Lease' | 'Invest';
 
@@ -91,4 +91,33 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
+}
+
+export interface PaymentRecord {
+  id?: string;
+  reference: string;
+  amount: number;
+  currency: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  serviceCategory: string;
+  propertyOrProjectTitle: string;
+  paymentMethod: 'paystack' | 'bank_transfer';
+  status: 'success' | 'pending' | 'verified';
+  invoiceNumber?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface ContactInquiry {
+  id?: string;
+  name: string;
+  phone: string;
+  email?: string;
+  serviceType: string;
+  corridor: string;
+  budget: string;
+  message: string;
+  createdAt?: string;
 }

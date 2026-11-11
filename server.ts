@@ -38,6 +38,8 @@ if (!fs.existsSync(DATA_DIR)) {
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const VIEWINGS_FILE = path.join(DATA_DIR, 'viewings.json');
 const REVIEWS_FILE = path.join(DATA_DIR, 'reviews.json');
+const PAYMENTS_FILE = path.join(DATA_DIR, 'payments.json');
+const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
 
 function readJsonFile<T>(filePath: string, defaultVal: T): T {
   try {
@@ -529,6 +531,113 @@ app.post('/api/reviews', (req, res) => {
   writeJsonFile(REVIEWS_FILE, reviews);
 
   res.status(201).json({ success: true, review: newReview });
+});
+
+// Paystack Gateway Config API
+app.get('/api/paystack/config', (req, res) => {
+  const publicKey = process.env.PAYSTACK_PUBLIC_KEY || process.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_sample_ola_continental_key';
+  const isLive = publicKey.startsWith('pk_live_');
+  res.json({
+    publicKey,
+    isConfigured: Boolean(process.env.PAYSTACK_PUBLIC_KEY || process.env.VITE_PAYSTACK_PUBLIC_KEY),
+    isLive,
+    currency: 'NGN',
+    merchantName: 'Ola Continental Properties & Construction',
+    companyReg: 'CAC BN: 3189204',
+  });
+});
+
+// Payments API (Records Paystack & Verified Bank Transfers)
+app.get('/api/payments', (req, res) => {
+  const payments = readJsonFile<any[]>(PAYMENTS_FILE, []);
+  res.json({ payments });
+});
+
+app.post('/api/payments', (req, res) => {
+  const {
+    reference,
+    amount,
+    currency = 'NGN',
+    clientName,
+    clientEmail,
+    clientPhone,
+    serviceCategory,
+    propertyOrProjectTitle,
+    paymentMethod = 'paystack',
+    status = 'success',
+    invoiceNumber,
+    notes,
+  } = req.body;
+
+  if (!clientName || !clientEmail || !amount) {
+    return res.status(400).json({ error: 'Client name, email, and amount are required' });
+  }
+
+  const payments = readJsonFile<any[]>(PAYMENTS_FILE, []);
+  const newPayment = {
+    id: `pay-${Date.now()}`,
+    reference: reference || `REF-OC-${Date.now().toString(36).toUpperCase()}`,
+    amount: Number(amount),
+    currency,
+    clientName,
+    clientEmail,
+    clientPhone: clientPhone || '',
+    serviceCategory: serviceCategory || 'General Retainer',
+    propertyOrProjectTitle: propertyOrProjectTitle || '',
+    paymentMethod,
+    status,
+    invoiceNumber: invoiceNumber || '',
+    notes: notes || '',
+    createdAt: new Date().toISOString(),
+  };
+
+  payments.unshift(newPayment);
+  writeJsonFile(PAYMENTS_FILE, payments);
+
+  // Sync client as lead/payer in CRM
+  syncLeadToExternalSendPulse({
+    name: clientName,
+    email: clientEmail,
+    phone: clientPhone || '',
+    serviceType: serviceCategory,
+    budget: `₦${Number(amount).toLocaleString()}`,
+    message: `Payment received: ${reference} for ${propertyOrProjectTitle}`,
+    source: `Paystack Portal (${paymentMethod})`,
+  }).catch((err: any) => console.warn('Payment CRM sync notice:', err));
+
+  res.status(201).json({ success: true, payment: newPayment });
+});
+
+// Contacts API
+app.get('/api/contacts', (req, res) => {
+  const contacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  res.json({ contacts });
+});
+
+app.post('/api/contacts', (req, res) => {
+  const { name, phone, email, serviceType, corridor, budget, message } = req.body;
+  if (!name || !phone) {
+    return res.status(400).json({ error: 'Name and phone are required' });
+  }
+
+  const contacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  const newContact = {
+    id: `contact-${Date.now()}`,
+    name,
+    phone,
+    email: email || '',
+    serviceType: serviceType || 'General Inquiry',
+    corridor: corridor || 'Ogbomoso / Lagos',
+    budget: budget || 'On Request',
+    message: message || '',
+    createdAt: new Date().toISOString(),
+    status: 'Pending Review',
+  };
+
+  contacts.unshift(newContact);
+  writeJsonFile(CONTACTS_FILE, contacts);
+
+  res.status(201).json({ success: true, contact: newContact });
 });
 
 // Vite middleware integration in development, static files in production

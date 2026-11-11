@@ -15,16 +15,19 @@ import {
   Globe2,
   ArrowRight
 } from 'lucide-react';
-import { createFirestoreLead } from '../lib/firebase';
+import { createFirestoreLead, createFirestoreContact } from '../lib/firebase';
+import { ContactInquiry } from '../types';
 
 interface ContactSectionProps {
   onOpenViewing: () => void;
   onOpenChat: () => void;
+  onConnectWithAi?: (inquiry: ContactInquiry) => void;
 }
 
 export const ContactSection: React.FC<ContactSectionProps> = ({
   onOpenViewing,
   onOpenChat,
+  onConnectWithAi,
 }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -36,12 +39,13 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     message: '',
   });
 
+  const [lastSubmittedInquiry, setLastSubmittedInquiry] = useState<ContactInquiry | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent, connectToAiImmediately = false) => {
+    if (e) e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) {
       setErrorMsg('Please enter your full name and valid phone/WhatsApp number.');
       return;
@@ -50,45 +54,63 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     setIsSubmitting(true);
     setErrorMsg('');
 
-    try {
-      // 1. Save directly to Cloud Firestore
-      await createFirestoreLead({
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-        propertyType: formData.serviceType,
-        corridor: formData.corridor,
-        budget: formData.budget,
-        message: formData.message || 'Direct inquiry from Contact Section',
-        purpose: 'Invest',
-      }).catch((err) => console.warn('Firestore contact submit warning:', err));
+    const inquiryRecord: ContactInquiry = {
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      serviceType: formData.serviceType,
+      corridor: formData.corridor,
+      budget: formData.budget,
+      message: formData.message || 'Direct inquiry from Contact Section',
+      createdAt: new Date().toISOString(),
+    };
 
-      // 2. Post to API backend (with SendPulse sync)
-      await fetch('/api/leads', {
+    try {
+      // 1. Save directly to Cloud Firestore contacts & leads collections
+      await Promise.all([
+        createFirestoreContact(inquiryRecord).catch((err) =>
+          console.warn('Firestore contact submit warning:', err)
+        ),
+        createFirestoreLead({
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          propertyType: formData.serviceType,
+          corridor: formData.corridor,
+          budget: formData.budget,
+          message: formData.message || 'Direct inquiry from Contact Section',
+          purpose: 'Invest',
+        }).catch((err) => console.warn('Firestore lead submit warning:', err)),
+      ]);
+
+      // 2. Post to API backend (with SendPulse CRM sync)
+      await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          source: 'Contact Page Inquiry',
-        }),
-      });
+        body: JSON.stringify(inquiryRecord),
+      }).catch((err) => console.warn('API contact save warning:', err));
 
+      setLastSubmittedInquiry(inquiryRecord);
       setIsSubmitted(true);
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        serviceType: 'Building Construction & Architectural Design',
-        corridor: 'Behind LAUTECH Teaching Hospital',
-        budget: '₦20M - ₦50M',
-        message: '',
-      });
+
+      if (connectToAiImmediately && onConnectWithAi) {
+        onConnectWithAi(inquiryRecord);
+      }
     } catch (err: any) {
       console.error('Contact submission error:', err);
       setErrorMsg('Submission error. Please connect directly via WhatsApp at +234 803 384 8107.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleQuickConnectAi = () => {
+    if (!formData.name.trim()) {
+      // If user hasn't filled in their name, prompt them or open AI directly
+      onOpenChat();
+      return;
+    }
+    handleSubmit(undefined, true);
   };
 
   const whatsappDirectUrl = `https://wa.me/2348033848107?text=${encodeURIComponent(
@@ -284,6 +306,15 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                   Thank you for reaching out. Engineer Samuel Aleji and the technical desk have received your specifications and will respond within 4 business hours.
                 </p>
                 <div className="pt-2 flex flex-wrap justify-center gap-3">
+                  {onConnectWithAi && lastSubmittedInquiry && (
+                    <button
+                      onClick={() => onConnectWithAi(lastSubmittedInquiry)}
+                      className="px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#38bdf8]" />
+                      <span>Chat with Ola AI Assistant</span>
+                    </button>
+                  )}
                   <a
                     href={whatsappDirectUrl}
                     target="_blank"
@@ -294,8 +325,19 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                     <span>Follow Up on WhatsApp</span>
                   </a>
                   <button
-                    onClick={() => setIsSubmitted(false)}
-                    className="px-4 py-2 bg-[#1d4ed8] text-white text-xs font-semibold rounded-lg"
+                    onClick={() => {
+                      setIsSubmitted(false);
+                      setFormData({
+                        name: '',
+                        phone: '',
+                        email: '',
+                        serviceType: 'Building Construction & Architectural Design',
+                        corridor: 'Behind LAUTECH Teaching Hospital',
+                        budget: '₦20M - ₦50M',
+                        message: '',
+                      });
+                    }}
+                    className="px-4 py-2 bg-[#0c2a63] hover:bg-[#113e94] border border-[#38bdf8]/40 text-white text-xs font-semibold rounded-lg cursor-pointer"
                   >
                     Send Another Message
                   </button>
@@ -425,14 +467,24 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                   />
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 px-6 bg-[#1d4ed8] hover:bg-[#0284c7] text-white font-semibold text-xs rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full py-3.5 px-4 bg-[#1d4ed8] hover:bg-[#0284c7] text-white font-semibold text-xs rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />
-                    <span>{isSubmitting ? 'Transmitting to Technical Desk...' : 'Submit Inquiry to Technical Desk'}</span>
+                    <span>{isSubmitting ? 'Transmitting...' : 'Submit to Technical Desk'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleQuickConnectAi}
+                    disabled={isSubmitting}
+                    className="w-full py-3.5 px-4 bg-[#0c2a63] hover:bg-[#113e94] border border-[#38bdf8]/50 text-[#e0f2fe] hover:text-white font-semibold text-xs rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#38bdf8]" />
+                    <span>Submit & Chat with Ola AI</span>
                   </button>
                 </div>
               </form>

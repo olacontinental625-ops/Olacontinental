@@ -11,6 +11,7 @@ import { VerificationSection } from './components/VerificationSection';
 import { ReviewsSection } from './components/ReviewsSection';
 import { AboutSection } from './components/AboutSection';
 import { ContactSection } from './components/ContactSection';
+import { PaymentLandingPage } from './components/PaymentLandingPage';
 import { BuildingConstructionShowcase } from './components/BuildingConstructionShowcase';
 import { BuyerEducationModal } from './components/BuyerEducationModal';
 import { DocumentVaultModal } from './components/DocumentVaultModal';
@@ -19,7 +20,7 @@ import { AiAssistantDrawer } from './components/AiAssistantDrawer';
 import { AdminDashboardModal } from './components/AdminDashboardModal';
 import { Footer } from './components/Footer';
 import { PROPERTIES } from './data/properties';
-import { Property, PropertyPurpose, PropertyType, Corridor, PageType } from './types';
+import { Property, PropertyPurpose, PropertyType, Corridor, PageType, ContactInquiry } from './types';
 import {
   Layers,
   Sparkles,
@@ -40,18 +41,20 @@ import {
   HardHat,
   Mail,
   Home,
-  CheckSquare
+  CheckSquare,
+  CreditCard
 } from 'lucide-react';
 
 export default function App() {
-  // Page Routing State ('home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact')
+  // Page Routing State ('home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'pay')
   const [currentPage, setCurrentPage] = useState<PageType>('home');
+  const [activeContactInquiry, setActiveContactInquiry] = useState<ContactInquiry | null>(null);
 
   // Sync with browser hash routing
   useEffect(() => {
     const handleHashChange = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, '').toLowerCase().trim();
-      if (['about', 'properties', 'corridors', 'verification', 'testimonials', 'contact'].includes(rawHash)) {
+      if (['about', 'properties', 'corridors', 'verification', 'testimonials', 'contact', 'pay'].includes(rawHash)) {
         setCurrentPage(rawHash as PageType);
       } else if (!rawHash || rawHash === 'home') {
         setCurrentPage('home');
@@ -369,6 +372,37 @@ export default function App() {
                   <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-[#38bdf8] group-hover:text-white transition-colors">
                     <span>Open Reviews & Write Comment</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* Portal Card 7: Official Payment & Client Retainer Portal */}
+                <div
+                  onClick={() => navigateTo('pay')}
+                  className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between md:col-span-2 lg:col-span-3"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-semibold tracking-widest uppercase text-[#25D366] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-[#25D366]" />
+                          <span>Paystack Gateway · Instant Settlement</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">256-bit Encrypted</span>
+                      </div>
+                      <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors">
+                        Official Payment & Client Retainer Gateway
+                      </h3>
+                      <p className="text-xs text-slate-300 leading-relaxed mt-1 max-w-3xl">
+                        Settle fees securely for Tuesday on-site walkthroughs (₦25k), Ministry of Lands cadastral charting & survey deposits (₦250k), architectural design retainers (₦350k), or custom project milestones via Paystack or direct corporate bank transfer.
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-3">
+                      <span className="px-4 py-2 text-xs font-semibold text-white bg-[#2563eb] group-hover:bg-[#1d4ed8] rounded-xl transition-colors flex items-center gap-2 shadow-md">
+                        <span>Open Payment Gateway</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -735,8 +769,22 @@ export default function App() {
             <ContactSection
               onOpenViewing={() => handleBookViewing(null)}
               onOpenChat={() => setIsChatOpen(true)}
+              onConnectWithAi={(inquiry) => {
+                setActiveContactInquiry(inquiry);
+                setIsChatOpen(true);
+              }}
             />
           </div>
+        )}
+
+        {/* =========================================================================
+            VIEW 8: DEDICATED PAYMENT & RETAINER LANDING PAGE (Paystack Gateway)
+           ========================================================================= */}
+        {currentPage === 'pay' && (
+          <PaymentLandingPage
+            onOpenChat={() => setIsChatOpen(true)}
+            onNavigateHome={() => navigateTo('home')}
+          />
         )}
       </main>
 
@@ -830,6 +878,7 @@ export default function App() {
         <AiAssistantDrawer
           onClose={() => setIsChatOpen(false)}
           onOpenViewing={() => handleBookViewing(null)}
+          initialInquiry={activeContactInquiry}
         />
       )}
 

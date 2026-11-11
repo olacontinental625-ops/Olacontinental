@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, ShieldCheck, Mail, Clock, Lock, ArrowRight, HardHat } from 'lucide-react';
+import { MapPin, Phone, ShieldCheck, Mail, Clock, Lock, ArrowRight, HardHat, Download } from 'lucide-react';
 import { PageType } from '../types';
 
 interface FooterProps {
@@ -147,6 +147,16 @@ export const Footer: React.FC<FooterProps> = ({
               >
                 Client Testimonials & Field Reviews
               </button>
+              <button
+                onClick={() => {
+                  onNavigate('pay');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="text-left text-[#38bdf8] hover:text-white font-semibold transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Pay Retainer & Client Fees (Paystack)</span>
+                <span className="text-[10px] text-[#25D366] bg-[#25D366]/20 px-1.5 py-0.2 rounded font-mono">256-bit</span>
+              </button>
             </div>
           </div>
 
@@ -193,6 +203,14 @@ export const Footer: React.FC<FooterProps> = ({
                   <Lock className="w-3 h-3" />
                   <span>Broker Management Portal</span>
                 </button>
+                <a
+                  href="/hostinger_website_backup.zip"
+                  download="hostinger_website_backup.zip"
+                  className="text-left text-[#4ade80] hover:text-[#4ade80]/80 transition-colors flex items-center gap-1 cursor-pointer pt-1"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Download Hostinger Backup (.ZIP)</span>
+                </a>
               </div>
             </div>
           </div>

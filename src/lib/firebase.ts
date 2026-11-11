@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { LeadSubmission, ViewingRequest, InspectionReview } from '../types';
+import { LeadSubmission, ViewingRequest, InspectionReview, PaymentRecord, ContactInquiry } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -267,3 +267,82 @@ export function listenToLeads(callback: (leads: LeadSubmission[]) => void): () =
     return () => {};
   }
 }
+
+// Create Payment Record (Paystack & Direct Bank Transfer)
+export async function createFirestorePayment(payment: PaymentRecord): Promise<string> {
+  const path = 'payments';
+  try {
+    const docId = payment.reference || `pay-${Date.now()}`;
+    const docRef = doc(db, path, docId);
+    await setDoc(docRef, {
+      ...payment,
+      id: docId,
+      createdAt: payment.createdAt || new Date().toISOString(),
+      timestamp: serverTimestamp(),
+    });
+    return docId;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, path);
+    throw err;
+  }
+}
+
+// Real-time listener for Payments (Admin portal)
+export function listenToPayments(callback: (payments: PaymentRecord[]) => void): () => void {
+  const path = 'payments';
+  try {
+    const colRef = collection(db, path);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const loaded: PaymentRecord[] = [];
+        snapshot.forEach((d) => {
+          const data = d.data();
+          loaded.push({
+            id: d.id,
+            reference: data.reference || d.id,
+            amount: Number(data.amount) || 0,
+            currency: data.currency || 'NGN',
+            clientName: data.clientName || 'Anonymous Client',
+            clientEmail: data.clientEmail || '',
+            clientPhone: data.clientPhone || '',
+            serviceCategory: data.serviceCategory || 'Property / Civil Construction Service',
+            propertyOrProjectTitle: data.propertyOrProjectTitle || '',
+            paymentMethod: data.paymentMethod || 'paystack',
+            status: data.status || 'success',
+            invoiceNumber: data.invoiceNumber || '',
+            notes: data.notes || '',
+            createdAt: data.createdAt || '',
+          });
+        });
+        callback(loaded);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, path);
+      }
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, path);
+    return () => {};
+  }
+}
+
+// Create Contact Inquiry
+export async function createFirestoreContact(contact: ContactInquiry): Promise<string> {
+  const path = 'contacts';
+  try {
+    const docId = `contact-${Date.now()}`;
+    const docRef = doc(db, path, docId);
+    await setDoc(docRef, {
+      ...contact,
+      id: docId,
+      createdAt: contact.createdAt || new Date().toISOString(),
+      timestamp: serverTimestamp(),
+    });
+    return docId;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, path);
+    throw err;
+  }
+}
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, ShieldCheck, Users, Calendar, Star, RefreshCw, MessageSquare, Phone, Database, Cloud } from 'lucide-react';
-import { LeadSubmission, ViewingRequest, InspectionReview } from '../types';
-import { listenToViewings, listenToLeads } from '../lib/firebase';
+import { X, Lock, ShieldCheck, Users, Calendar, Star, RefreshCw, MessageSquare, Phone, Database, Cloud, Download, CreditCard, CheckCircle2 } from 'lucide-react';
+import { LeadSubmission, ViewingRequest, InspectionReview, PaymentRecord } from '../types';
+import { listenToViewings, listenToLeads, listenToPayments } from '../lib/firebase';
 
 interface AdminDashboardModalProps {
   onClose: () => void;
@@ -13,11 +13,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [passcode, setPasscode] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [activeTab, setActiveTab] = useState<'viewings' | 'leads' | 'reviews'>('viewings');
+  const [activeTab, setActiveTab] = useState<'viewings' | 'leads' | 'reviews' | 'payments'>('viewings');
 
   const [viewings, setViewings] = useState<ViewingRequest[]>([]);
   const [leads, setLeads] = useState<LeadSubmission[]>([]);
   const [reviews, setReviews] = useState<InspectionReview[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -55,24 +56,37 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       }
     });
 
+    const unsubPayments = listenToPayments((livePayments) => {
+      if (livePayments && livePayments.length > 0) {
+        setPayments((prev) => {
+          const ids = new Set(livePayments.map((p) => p.reference || p.id));
+          const filtered = prev.filter((p) => !ids.has(p.reference || p.id));
+          return [...livePayments, ...filtered];
+        });
+      }
+    });
+
     return () => {
       unsubViewings();
       unsubLeads();
+      unsubPayments();
     };
   }, [isAuthenticated]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [vRes, lRes, rRes] = await Promise.all([
+      const [vRes, lRes, rRes, pRes] = await Promise.all([
         fetch('/api/viewings').then((r) => r.json()).catch(() => ({ viewings: [] })),
         fetch('/api/leads').then((r) => r.json()).catch(() => ({ leads: [] })),
         fetch('/api/reviews').then((r) => r.json()).catch(() => ({ reviews: [] })),
+        fetch('/api/payments').then((r) => r.json()).catch(() => ({ payments: [] })),
       ]);
 
       if (vRes.viewings) setViewings(vRes.viewings);
       if (lRes.leads) setLeads(lRes.leads);
       if (rRes.reviews) setReviews(rRes.reviews);
+      if (pRes.payments) setPayments(pRes.payments);
     } catch (err) {
       console.error('Failed to load admin records:', err);
     } finally {
@@ -100,12 +114,23 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               <p className="text-xs text-[#FAF4E8]/60">Live synced to Cloud Firestore & local persistence</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-[#FAF4E8]/60 hover:text-white rounded-lg hover:bg-[#0D2638]"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/hostinger_website_backup.zip"
+              download="hostinger_website_backup.zip"
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-lg transition-colors flex items-center gap-1.5 shadow"
+              title="Download Hostinger Public_HTML Website Backup"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Hostinger .ZIP</span>
+            </a>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-[#FAF4E8]/60 hover:text-white rounded-lg hover:bg-[#0D2638] cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {!isAuthenticated ? (
@@ -163,6 +188,15 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   }`}
                 >
                   Inspection Reviews ({reviews.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('payments')}
+                  className={`pb-1 cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'payments' ? 'text-[#38bdf8] border-b-2 border-[#38bdf8]' : 'text-[#FAF4E8]/60 hover:text-white'
+                  }`}
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Payments & Retainers ({payments.length})</span>
                 </button>
               </div>
 
@@ -275,6 +309,76 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       <p className="text-[#FAF4E8]/80 italic">"{r.comment}"</p>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {activeTab === 'payments' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#1E486A]/50 text-[#38bdf8]">
+                        <th className="py-2.5 px-3">Date & Ref</th>
+                        <th className="py-2.5 px-3">Client Details</th>
+                        <th className="py-2.5 px-3">Service / Retainer</th>
+                        <th className="py-2.5 px-3">Amount (NGN)</th>
+                        <th className="py-2.5 px-3">Channel</th>
+                        <th className="py-2.5 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1E486A]/30">
+                      {payments.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-[#FAF4E8]/50 italic">
+                            No payment transactions logged yet. Payments completed via Paystack or logged transfers will appear here in real time.
+                          </td>
+                        </tr>
+                      ) : (
+                        payments.map((p, i) => (
+                          <tr key={p.reference || p.id || i} className="hover:bg-[#0A2235]/60 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <div className="font-mono text-[#38bdf8] font-bold">{p.reference}</div>
+                              <div className="text-[10px] text-[#FAF4E8]/50">
+                                {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Recent'}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="font-semibold text-white">{p.clientName}</div>
+                              <div className="text-[11px] text-[#25D366] font-mono">{p.clientPhone}</div>
+                              {p.clientEmail && <div className="text-[10px] text-[#bfdbfe]">{p.clientEmail}</div>}
+                            </td>
+                            <td className="py-2.5 px-3 text-[#FAF4E8]/90">
+                              <div className="font-medium">{p.serviceCategory}</div>
+                              {p.propertyOrProjectTitle && (
+                                <div className="text-[10px] text-[#93c5fd]">{p.propertyOrProjectTitle}</div>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono font-bold text-white">
+                              ₦{p.amount ? p.amount.toLocaleString() : '0'}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
+                                p.paymentMethod === 'paystack'
+                                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] border border-[#38bdf8]/30'
+                                  : 'bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/30'
+                              }`}>
+                                {p.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 w-fit ${
+                                p.status === 'success' || p.status === 'verified'
+                                  ? 'bg-[#25D366]/20 text-[#25D366]'
+                                  : 'bg-amber-500/20 text-amber-300'
+                              }`}>
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>{p.status}</span>
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

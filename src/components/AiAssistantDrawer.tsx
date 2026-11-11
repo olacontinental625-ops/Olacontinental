@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Phone, MessageSquare, ShieldCheck, Building2, User, Bot, Loader2, CheckCircle2, UserCheck, ArrowRight } from 'lucide-react';
-import { ChatMessage } from '../types';
+import { ChatMessage, ContactInquiry } from '../types';
 import { createFirestoreLead } from '../lib/firebase';
 
 interface AiAssistantDrawerProps {
   onClose: () => void;
   onOpenViewing: () => void;
+  initialInquiry?: ContactInquiry | null;
 }
 
 const DEFAULT_SUGGESTIONS = [
@@ -20,32 +21,67 @@ const DEFAULT_SUGGESTIONS = [
 export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
   onClose,
   onOpenViewing,
+  initialInquiry,
 }) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'lead'>('chat');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'init-1',
-      sender: 'assistant',
-      text: 'E kaabo & warm greetings! 😊 I am Ola AI, your personal real estate consultant at Ola Continental Properties & Associates.\n\nWhether you are exploring high-yield LAUTECH student hostels in Adenike, executive duplexes behind LAUTECH Teaching Hospital, commercial investments in Mushin Lagos, or fertile farmland in Odo-Oba, I am here to assist your plans with total transparency and honesty.\n\nWhat kind of property or corridor would you like to explore today? You can also tap "Drop Lead / Fast Inquiry" above to request a priority callback from Engineer Samuel Aleji.',
-      timestamp: 'Just now',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (initialInquiry) {
+      return [
+        {
+          id: 'contact-init',
+          sender: 'assistant',
+          text: `E kaabo & greetings ${initialInquiry.name}! 👋 I am Ola AI.\n\nI have received your inquiry from the Contact page regarding "${initialInquiry.serviceType}" in the ${initialInquiry.corridor} corridor (Budget: ${initialInquiry.budget}).\n\nYour message has been transmitted directly to Engineer Samuel Aleji. While he reviews your request, how can I assist you with site details, structural planning, or Tuesday inspection schedules right now?`,
+          timestamp: 'Just now',
+        },
+      ];
+    }
+    return [
+      {
+        id: 'init-1',
+        sender: 'assistant',
+        text: 'E kaabo & warm greetings! 😊 I am Ola AI, your personal real estate consultant at Ola Continental Properties & Associates.\n\nWhether you are exploring high-yield LAUTECH student hostels in Adenike, executive duplexes behind LAUTECH Teaching Hospital, commercial investments in Mushin Lagos, or fertile farmland in Odo-Oba, I am here to assist your plans with total transparency and honesty.\n\nWhat kind of property or corridor would you like to explore today? You can also tap "Drop Lead / Fast Inquiry" above to request a priority callback from Engineer Samuel Aleji.',
+        timestamp: 'Just now',
+      },
+    ];
+  });
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Lead Collection State
   const [leadForm, setLeadForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    propertyType: 'Student Hostel',
-    corridor: 'Adenike (LAUTECH)',
-    budget: '₦40M - ₦80M',
-    message: '',
+    name: initialInquiry?.name || '',
+    phone: initialInquiry?.phone || '',
+    email: initialInquiry?.email || '',
+    propertyType: initialInquiry?.serviceType || 'Student Hostel',
+    corridor: initialInquiry?.corridor || 'Adenike (LAUTECH)',
+    budget: initialInquiry?.budget || '₦40M - ₦80M',
+    message: initialInquiry?.message || '',
   });
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState(false);
+
+  useEffect(() => {
+    if (initialInquiry) {
+      setMessages([
+        {
+          id: `contact-init-${Date.now()}`,
+          sender: 'assistant',
+          text: `E kaabo & greetings ${initialInquiry.name}! 👋 I am Ola AI.\n\nI have received your inquiry from the Contact page regarding "${initialInquiry.serviceType}" in the ${initialInquiry.corridor} corridor (Budget: ${initialInquiry.budget}).\n\nYour message has been transmitted directly to Engineer Samuel Aleji. While he reviews your request, how can I assist you with site details, structural planning, or Tuesday inspection schedules right now?`,
+          timestamp: 'Just now',
+        },
+      ]);
+      setLeadForm({
+        name: initialInquiry.name || '',
+        phone: initialInquiry.phone || '',
+        email: initialInquiry.email || '',
+        propertyType: initialInquiry.serviceType || 'Student Hostel',
+        corridor: initialInquiry.corridor || 'Adenike (LAUTECH)',
+        budget: initialInquiry.budget || '₦40M - ₦80M',
+        message: initialInquiry.message || '',
+      });
+    }
+  }, [initialInquiry]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -247,6 +283,20 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           <>
             {/* Chat History */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+              {initialInquiry && (
+                <div className="p-3 bg-[#0c2a63] border border-[#38bdf8]/40 rounded-xl text-xs space-y-1">
+                  <div className="flex items-center justify-between text-[#38bdf8] font-semibold text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Connected Contact Form Inquiry</span>
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-400">Synced</span>
+                  </div>
+                  <div className="text-[#e0f2fe] text-[11px] leading-tight">
+                    <strong>Client:</strong> {initialInquiry.name} · {initialInquiry.serviceType} ({initialInquiry.corridor})
+                  </div>
+                </div>
+              )}
               {messages.map((msg) => (
                 <div
                   key={msg.id}
