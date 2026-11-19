@@ -149,13 +149,13 @@ export const Footer: React.FC<FooterProps> = ({
               </button>
               <button
                 onClick={() => {
-                  onNavigate('pay');
+                  onNavigate('blogs');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="text-left text-[#38bdf8] hover:text-white font-semibold transition-colors cursor-pointer flex items-center justify-between"
               >
-                <span>Pay Retainer & Client Fees (Paystack)</span>
-                <span className="text-[10px] text-[#25D366] bg-[#25D366]/20 px-1.5 py-0.2 rounded font-mono">256-bit</span>
+                <span>Blogs</span>
+                <span className="text-[10px] text-[#38bdf8] bg-[#1d4ed8]/20 px-1.5 py-0.2 rounded font-mono">Articles</span>
               </button>
             </div>
           </div>

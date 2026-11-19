@@ -38,7 +38,7 @@ if (!fs.existsSync(DATA_DIR)) {
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const VIEWINGS_FILE = path.join(DATA_DIR, 'viewings.json');
 const REVIEWS_FILE = path.join(DATA_DIR, 'reviews.json');
-const PAYMENTS_FILE = path.join(DATA_DIR, 'payments.json');
+const BLOGS_FILE = path.join(DATA_DIR, 'blogs.json');
 const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
 
 function readJsonFile<T>(filePath: string, defaultVal: T): T {
@@ -113,141 +113,7 @@ app.get('/api/health', (req, res) => {
     established: 2006,
     geminiEnabled: Boolean(ai),
     firebaseConfigured: fs.existsSync(path.resolve(__dirname, 'firebase-applet-config.json')),
-    sendpulseConfigured: Boolean(process.env.SENDPULSE_API_USER_ID && process.env.SENDPULSE_API_SECRET),
     timestamp: new Date().toISOString(),
-  });
-});
-
-// SendPulse Service Helper
-let cachedSendPulseToken: { token: string; expiresAt: number } | null = null;
-
-async function getSendPulseAccessToken(): Promise<string | null> {
-  const userId = process.env.SENDPULSE_API_USER_ID;
-  const secret = process.env.SENDPULSE_API_SECRET;
-
-  if (!userId || !secret) {
-    return null;
-  }
-
-  if (cachedSendPulseToken && cachedSendPulseToken.expiresAt > Date.now()) {
-    return cachedSendPulseToken.token;
-  }
-
-  try {
-    const res = await fetch('https://api.sendpulse.com/oauth/access_token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id: userId,
-        client_secret: secret,
-      }),
-    });
-
-    if (!res.ok) {
-      console.warn('[SendPulse] Failed to obtain access token:', res.status, await res.text());
-      return null;
-    }
-
-    const data: any = await res.json();
-    if (data.access_token) {
-      cachedSendPulseToken = {
-        token: data.access_token,
-        expiresAt: Date.now() + ((data.expires_in || 3600) - 120) * 1000,
-      };
-      return data.access_token;
-    }
-    return null;
-  } catch (err) {
-    console.warn('[SendPulse] Error requesting OAuth token:', err);
-    return null;
-  }
-}
-
-async function syncLeadToExternalSendPulse(lead: any): Promise<{ synced: boolean; message: string }> {
-  const userId = process.env.SENDPULSE_API_USER_ID;
-  const secret = process.env.SENDPULSE_API_SECRET;
-  const addressBookId = process.env.SENDPULSE_ADDRESS_BOOK_ID;
-
-  if (!userId || !secret) {
-    return {
-      synced: false,
-      message: 'SendPulse credentials not configured in environment yet. Lead stored securely in Firestore and local CRM.',
-    };
-  }
-
-  try {
-    const token = await getSendPulseAccessToken();
-    if (!token) {
-      return { synced: false, message: 'Could not authenticate with SendPulse API with provided credentials.' };
-    }
-
-    if (addressBookId) {
-      const email = lead.email || `inquiry-${Date.now()}@olacontinental-leads.com`;
-      const res = await fetch(`https://api.sendpulse.com/addressbooks/${addressBookId}/emails`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          emails: [
-            {
-              email,
-              variables: {
-                Name: lead.name,
-                Phone: lead.phone,
-                Corridor: lead.corridor || 'Ogbomoso',
-                PropertyType: lead.propertyType || 'General',
-                Budget: lead.budget || '',
-                Message: lead.message || '',
-                Source: lead.source || 'Ola AI Assistant',
-              },
-            },
-          ],
-        }),
-      });
-
-      const resData = await res.json();
-      console.log('[SendPulse] Address book sync response:', resData);
-      return { synced: true, message: 'Lead successfully dropped into SendPulse address book.' };
-    }
-
-    // Default: CRM contact
-    const crmRes = await fetch('https://api.sendpulse.com/crm/v1/contacts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        firstName: lead.name,
-        phones: [lead.phone],
-        emails: lead.email ? [lead.email] : [],
-        comment: `Ola Continental Property Lead: ${lead.propertyType} in ${lead.corridor}. Budget: ${lead.budget}. Notes: ${lead.message || 'Direct inquiry'}`,
-      }),
-    });
-
-    const crmData = await crmRes.json();
-    console.log('[SendPulse] CRM contact response:', crmData);
-    return { synced: true, message: 'Lead dropped into SendPulse CRM contacts.' };
-  } catch (err: any) {
-    console.error('[SendPulse] Sync error:', err);
-    return { synced: false, message: `SendPulse sync error: ${err.message}` };
-  }
-}
-
-// Check SendPulse Status endpoint
-app.get('/api/sendpulse/status', (req, res) => {
-  const isConfigured = Boolean(process.env.SENDPULSE_API_USER_ID && process.env.SENDPULSE_API_SECRET);
-  res.json({
-    configured: isConfigured,
-    userIdProvided: Boolean(process.env.SENDPULSE_API_USER_ID),
-    secretProvided: Boolean(process.env.SENDPULSE_API_SECRET),
-    addressBookProvided: Boolean(process.env.SENDPULSE_ADDRESS_BOOK_ID),
-    message: isConfigured
-      ? 'SendPulse is configured and active to receive leads from Ola AI Assistant.'
-      : 'SendPulse credentials not yet attached. Leads are safely stored in Firestore and ready for auto-sync once keys are provided.',
   });
 });
 
@@ -430,7 +296,7 @@ Key Rules:
   }
 });
 
-// Leads API with local persistence & SendPulse Forwarding
+// Leads API with local persistence
 app.get('/api/leads', (req, res) => {
   const leads = readJsonFile<any[]>(LEADS_FILE, []);
   res.json({ leads });
@@ -461,13 +327,9 @@ app.post('/api/leads', async (req, res) => {
   leads.unshift(newLead);
   writeJsonFile(LEADS_FILE, leads);
 
-  // Synchronize with SendPulse CRM/Mailing List if credentials are configured
-  const sendpulseResult = await syncLeadToExternalSendPulse(newLead);
-
   res.status(201).json({
     success: true,
     lead: newLead,
-    sendpulse: sendpulseResult,
   });
 });
 
@@ -533,79 +395,61 @@ app.post('/api/reviews', (req, res) => {
   res.status(201).json({ success: true, review: newReview });
 });
 
-// Paystack Gateway Config API
-app.get('/api/paystack/config', (req, res) => {
-  const publicKey = process.env.PAYSTACK_PUBLIC_KEY || process.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_sample_ola_continental_key';
-  const isLive = publicKey.startsWith('pk_live_');
-  res.json({
-    publicKey,
-    isConfigured: Boolean(process.env.PAYSTACK_PUBLIC_KEY || process.env.VITE_PAYSTACK_PUBLIC_KEY),
-    isLive,
-    currency: 'NGN',
-    merchantName: 'Ola Continental Properties & Construction',
-    companyReg: 'CAC BN: 3189204',
-  });
+// Blogs API (Read & Publish Editorial Insights)
+app.get('/api/blogs', (req, res) => {
+  const blogs = readJsonFile<any[]>(BLOGS_FILE, []);
+  res.json({ blogs });
 });
 
-// Payments API (Records Paystack & Verified Bank Transfers)
-app.get('/api/payments', (req, res) => {
-  const payments = readJsonFile<any[]>(PAYMENTS_FILE, []);
-  res.json({ payments });
-});
-
-app.post('/api/payments', (req, res) => {
+app.post('/api/blogs', (req, res) => {
   const {
-    reference,
-    amount,
-    currency = 'NGN',
-    clientName,
-    clientEmail,
-    clientPhone,
-    serviceCategory,
-    propertyOrProjectTitle,
-    paymentMethod = 'paystack',
-    status = 'success',
-    invoiceNumber,
-    notes,
+    title,
+    excerpt,
+    content,
+    category = 'Market Intelligence',
+    author = 'Engr. Samuel Aleji',
+    authorRole = 'Principal Consultant & Civil Engineer',
+    corridorTag = 'Ogbomoso & Lagos',
+    coverImage = '/assets/aistudio/IMG-20261031-WA0089_fc7755dc.jpg',
+    tags = [],
   } = req.body;
 
-  if (!clientName || !clientEmail || !amount) {
-    return res.status(400).json({ error: 'Client name, email, and amount are required' });
+  if (!title || !excerpt || !content) {
+    return res.status(400).json({ error: 'Title, excerpt, and article content are required' });
   }
 
-  const payments = readJsonFile<any[]>(PAYMENTS_FILE, []);
-  const newPayment = {
-    id: `pay-${Date.now()}`,
-    reference: reference || `REF-OC-${Date.now().toString(36).toUpperCase()}`,
-    amount: Number(amount),
-    currency,
-    clientName,
-    clientEmail,
-    clientPhone: clientPhone || '',
-    serviceCategory: serviceCategory || 'General Retainer',
-    propertyOrProjectTitle: propertyOrProjectTitle || '',
-    paymentMethod,
-    status,
-    invoiceNumber: invoiceNumber || '',
-    notes: notes || '',
+  const contentArray = Array.isArray(content)
+    ? content
+    : String(content)
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+  const wordCount = contentArray.join(' ').split(/\s+/).length;
+  const readMinutes = Math.max(2, Math.ceil(wordCount / 180));
+
+  const blogs = readJsonFile<any[]>(BLOGS_FILE, []);
+  const newBlog = {
+    id: `blog-${Date.now()}`,
+    title: String(title).trim(),
+    excerpt: String(excerpt).trim(),
+    content: contentArray,
+    category,
+    author,
+    authorRole,
+    publishedAt: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+    readTime: `${readMinutes} min read`,
+    coverImage,
+    corridorTag,
+    featured: false,
+    tags: Array.isArray(tags) ? tags : [],
     createdAt: new Date().toISOString(),
   };
 
-  payments.unshift(newPayment);
-  writeJsonFile(PAYMENTS_FILE, payments);
+  blogs.unshift(newBlog);
+  writeJsonFile(BLOGS_FILE, blogs);
 
-  // Sync client as lead/payer in CRM
-  syncLeadToExternalSendPulse({
-    name: clientName,
-    email: clientEmail,
-    phone: clientPhone || '',
-    serviceType: serviceCategory,
-    budget: `₦${Number(amount).toLocaleString()}`,
-    message: `Payment received: ${reference} for ${propertyOrProjectTitle}`,
-    source: `Paystack Portal (${paymentMethod})`,
-  }).catch((err: any) => console.warn('Payment CRM sync notice:', err));
-
-  res.status(201).json({ success: true, payment: newPayment });
+  res.status(201).json({ success: true, blog: newBlog });
 });
 
 // Contacts API

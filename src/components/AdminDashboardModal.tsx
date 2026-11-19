@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, ShieldCheck, Users, Calendar, Star, RefreshCw, MessageSquare, Phone, Database, Cloud, Download, CreditCard, CheckCircle2 } from 'lucide-react';
-import { LeadSubmission, ViewingRequest, InspectionReview, PaymentRecord } from '../types';
-import { listenToViewings, listenToLeads, listenToPayments } from '../lib/firebase';
+import { X, Lock, ShieldCheck, RefreshCw, Phone, Database, Download, BookOpen, CheckCircle2, PlusCircle } from 'lucide-react';
+import { LeadSubmission, ViewingRequest, InspectionReview, BlogPost, BlogCategory } from '../types';
+import { listenToViewings, listenToLeads, listenToBlogs, createFirestoreBlog } from '../lib/firebase';
 
 interface AdminDashboardModalProps {
   onClose: () => void;
@@ -13,13 +13,22 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [passcode, setPasscode] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [activeTab, setActiveTab] = useState<'viewings' | 'leads' | 'reviews' | 'payments'>('viewings');
+  const [activeTab, setActiveTab] = useState<'viewings' | 'leads' | 'reviews' | 'blogs'>('viewings');
 
   const [viewings, setViewings] = useState<ViewingRequest[]>([]);
   const [leads, setLeads] = useState<LeadSubmission[]>([]);
   const [reviews, setReviews] = useState<InspectionReview[]>([]);
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Quick Blog Publisher State
+  const [blogTitle, setBlogTitle] = useState('');
+  const [blogCategory, setBlogCategory] = useState<Exclude<BlogCategory, 'All'>>('Market Intelligence');
+  const [blogCorridor, setBlogCorridor] = useState('Ogbomoso & Lagos');
+  const [blogExcerpt, setBlogExcerpt] = useState('');
+  const [blogContent, setBlogContent] = useState('');
+  const [publishingBlog, setPublishingBlog] = useState(false);
+  const [blogStatusMsg, setBlogStatusMsg] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,12 +65,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       }
     });
 
-    const unsubPayments = listenToPayments((livePayments) => {
-      if (livePayments && livePayments.length > 0) {
-        setPayments((prev) => {
-          const ids = new Set(livePayments.map((p) => p.reference || p.id));
-          const filtered = prev.filter((p) => !ids.has(p.reference || p.id));
-          return [...livePayments, ...filtered];
+    const unsubBlogs = listenToBlogs((liveBlogs) => {
+      if (liveBlogs && liveBlogs.length > 0) {
+        setBlogs((prev) => {
+          const ids = new Set(liveBlogs.map((b) => b.id));
+          const filtered = prev.filter((b) => !ids.has(b.id));
+          return [...liveBlogs, ...filtered];
         });
       }
     });
@@ -69,28 +78,80 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     return () => {
       unsubViewings();
       unsubLeads();
-      unsubPayments();
+      unsubBlogs();
     };
   }, [isAuthenticated]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [vRes, lRes, rRes, pRes] = await Promise.all([
+      const [vRes, lRes, rRes, bRes] = await Promise.all([
         fetch('/api/viewings').then((r) => r.json()).catch(() => ({ viewings: [] })),
         fetch('/api/leads').then((r) => r.json()).catch(() => ({ leads: [] })),
         fetch('/api/reviews').then((r) => r.json()).catch(() => ({ reviews: [] })),
-        fetch('/api/payments').then((r) => r.json()).catch(() => ({ payments: [] })),
+        fetch('/api/blogs').then((r) => r.json()).catch(() => ({ blogs: [] })),
       ]);
 
       if (vRes.viewings) setViewings(vRes.viewings);
       if (lRes.leads) setLeads(lRes.leads);
       if (rRes.reviews) setReviews(rRes.reviews);
-      if (pRes.payments) setPayments(pRes.payments);
+      if (bRes.blogs) setBlogs(bRes.blogs);
     } catch (err) {
       console.error('Failed to load admin records:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePublishBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blogTitle.trim() || !blogExcerpt.trim() || !blogContent.trim()) return;
+
+    setPublishingBlog(true);
+    setBlogStatusMsg('');
+
+    const contentParagraphs = blogContent
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const readMinutes = Math.max(2, Math.ceil(contentParagraphs.join(' ').split(/\s+/).length / 180));
+
+    const newPost: BlogPost = {
+      id: `blog-${Date.now()}`,
+      title: blogTitle.trim(),
+      excerpt: blogExcerpt.trim(),
+      content: contentParagraphs,
+      category: blogCategory,
+      author: 'Engr. Samuel Aleji',
+      authorRole: 'Principal Consultant & Civil Engineer',
+      publishedAt: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      readTime: `${readMinutes} min read`,
+      coverImage: '/assets/aistudio/IMG-20261031-WA0089_fc7755dc.jpg',
+      corridorTag: blogCorridor.trim() || 'Ogbomoso & Lagos',
+      featured: false,
+      tags: [blogCategory, 'Ola Continental'],
+    };
+
+    try {
+      await Promise.all([
+        createFirestoreBlog(newPost).catch((err) => console.warn('Firestore blog save warning:', err)),
+        fetch('/api/blogs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPost),
+        }),
+      ]);
+
+      setBlogTitle('');
+      setBlogExcerpt('');
+      setBlogContent('');
+      setBlogStatusMsg('Article published live to the Blogs section!');
+      fetchData();
+    } catch (err) {
+      console.error('Publish blog error:', err);
+      setBlogStatusMsg('Could not publish blog article. Please try again.');
+    } finally {
+      setPublishingBlog(false);
     }
   };
 
@@ -190,13 +251,13 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   Inspection Reviews ({reviews.length})
                 </button>
                 <button
-                  onClick={() => setActiveTab('payments')}
+                  onClick={() => setActiveTab('blogs')}
                   className={`pb-1 cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'payments' ? 'text-[#38bdf8] border-b-2 border-[#38bdf8]' : 'text-[#FAF4E8]/60 hover:text-white'
+                    activeTab === 'blogs' ? 'text-[#38bdf8] border-b-2 border-[#38bdf8]' : 'text-[#FAF4E8]/60 hover:text-white'
                   }`}
                 >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Payments & Retainers ({payments.length})</span>
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Field Blogs ({blogs.length})</span>
                 </button>
               </div>
 
@@ -312,73 +373,101 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                 </div>
               )}
 
-              {activeTab === 'payments' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#1E486A]/50 text-[#38bdf8]">
-                        <th className="py-2.5 px-3">Date & Ref</th>
-                        <th className="py-2.5 px-3">Client Details</th>
-                        <th className="py-2.5 px-3">Service / Retainer</th>
-                        <th className="py-2.5 px-3">Amount (NGN)</th>
-                        <th className="py-2.5 px-3">Channel</th>
-                        <th className="py-2.5 px-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#1E486A]/30">
-                      {payments.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="py-8 text-center text-[#FAF4E8]/50 italic">
-                            No payment transactions logged yet. Payments completed via Paystack or logged transfers will appear here in real time.
-                          </td>
-                        </tr>
-                      ) : (
-                        payments.map((p, i) => (
-                          <tr key={p.reference || p.id || i} className="hover:bg-[#0A2235]/60 transition-colors">
-                            <td className="py-2.5 px-3">
-                              <div className="font-mono text-[#38bdf8] font-bold">{p.reference}</div>
-                              <div className="text-[10px] text-[#FAF4E8]/50">
-                                {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Recent'}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <div className="font-semibold text-white">{p.clientName}</div>
-                              <div className="text-[11px] text-[#25D366] font-mono">{p.clientPhone}</div>
-                              {p.clientEmail && <div className="text-[10px] text-[#bfdbfe]">{p.clientEmail}</div>}
-                            </td>
-                            <td className="py-2.5 px-3 text-[#FAF4E8]/90">
-                              <div className="font-medium">{p.serviceCategory}</div>
-                              {p.propertyOrProjectTitle && (
-                                <div className="text-[10px] text-[#93c5fd]">{p.propertyOrProjectTitle}</div>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono font-bold text-white">
-                              ₦{p.amount ? p.amount.toLocaleString() : '0'}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
-                                p.paymentMethod === 'paystack'
-                                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] border border-[#38bdf8]/30'
-                                  : 'bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/30'
-                              }`}>
-                                {p.paymentMethod}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 w-fit ${
-                                p.status === 'success' || p.status === 'verified'
-                                  ? 'bg-[#25D366]/20 text-[#25D366]'
-                                  : 'bg-amber-500/20 text-amber-300'
-                              }`}>
-                                <CheckCircle2 className="w-3 h-3" />
-                                <span>{p.status}</span>
-                              </span>
-                            </td>
-                          </tr>
-                        ))
+              {activeTab === 'blogs' && (
+                <div className="space-y-6">
+                  <form onSubmit={handlePublishBlog} className="p-4 bg-[#051421] rounded-xl border border-[#1E486A]/50 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-display text-sm font-bold text-[#38bdf8] flex items-center gap-1.5">
+                        <PlusCircle className="w-4 h-4" />
+                        <span>Publish New Blog Insight</span>
+                      </h4>
+                      {blogStatusMsg && (
+                        <span className="text-[11px] text-[#25D366] flex items-center gap-1 font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{blogStatusMsg}</span>
+                        </span>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Article Title *"
+                        value={blogTitle}
+                        onChange={(e) => setBlogTitle(e.target.value)}
+                        className="sm:col-span-2 px-3 py-2 bg-[#071A2B] border border-[#1E486A] rounded-lg text-white focus:outline-none focus:border-[#38bdf8]"
+                      />
+                      <select
+                        value={blogCategory}
+                        onChange={(e) => setBlogCategory(e.target.value as Exclude<BlogCategory, 'All'>)}
+                        className="px-3 py-2 bg-[#071A2B] border border-[#1E486A] rounded-lg text-white focus:outline-none focus:border-[#38bdf8]"
+                      >
+                        <option value="Market Intelligence">Market Intelligence</option>
+                        <option value="Land Verification & Legal">Land Verification & Legal</option>
+                        <option value="Student Hostel ROI">Student Hostel ROI</option>
+                        <option value="Civil Construction">Civil Construction</option>
+                        <option value="Diaspora Guide">Diaspora Guide</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Short Excerpt / Summary *"
+                        value={blogExcerpt}
+                        onChange={(e) => setBlogExcerpt(e.target.value)}
+                        className="sm:col-span-2 px-3 py-2 bg-[#071A2B] border border-[#1E486A] rounded-lg text-white focus:outline-none focus:border-[#38bdf8]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Corridor Tag (e.g. Adenike)"
+                        value={blogCorridor}
+                        onChange={(e) => setBlogCorridor(e.target.value)}
+                        className="px-3 py-2 bg-[#071A2B] border border-[#1E486A] rounded-lg text-white focus:outline-none focus:border-[#38bdf8]"
+                      />
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Write full article paragraphs (separate paragraphs with a blank line) *"
+                      value={blogContent}
+                      onChange={(e) => setBlogContent(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#071A2B] border border-[#1E486A] rounded-lg text-white focus:outline-none focus:border-[#38bdf8]"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={publishingBlog}
+                      className="px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {publishingBlog ? 'Publishing...' : 'Publish Article Live'}
+                    </button>
+                  </form>
+
+                  <div className="space-y-2.5">
+                    {blogs.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-[#FAF4E8]/50 italic">
+                        No custom admin blog posts published yet. Built-in editorial guides are visible on the Blogs page, and any posts published above will appear here in real time.
+                      </div>
+                    ) : (
+                      blogs.map((b) => (
+                        <div key={b.id} className="p-3 bg-[#051421] rounded-xl border border-[#1E486A]/40 text-xs flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-semibold text-white">{b.title}</div>
+                            <div className="text-[11px] text-[#93c5fd] mt-0.5">
+                              {b.category} · {b.corridorTag} · {b.publishedAt}
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono text-[#25D366] bg-[#25D366]/10 px-2 py-0.5 rounded shrink-0">
+                            Published
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>

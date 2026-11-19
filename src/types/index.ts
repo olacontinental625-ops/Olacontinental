@@ -1,4 +1,4 @@
-export type PageType = 'home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'pay';
+export type PageType = 'home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'blogs';
 
 export type PropertyPurpose = 'All' | 'Buy' | 'Rent' | 'Lease' | 'Invest';
 
@@ -93,21 +93,28 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-export interface PaymentRecord {
-  id?: string;
-  reference: string;
-  amount: number;
-  currency: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  serviceCategory: string;
-  propertyOrProjectTitle: string;
-  paymentMethod: 'paystack' | 'bank_transfer';
-  status: 'success' | 'pending' | 'verified';
-  invoiceNumber?: string;
-  notes?: string;
-  createdAt?: string;
+export type BlogCategory =
+  | 'All'
+  | 'Land Verification & Legal'
+  | 'Student Hostel ROI'
+  | 'Civil Construction'
+  | 'Diaspora Guide'
+  | 'Market Intelligence';
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string[];
+  category: Exclude<BlogCategory, 'All'>;
+  author: string;
+  authorRole: string;
+  publishedAt: string;
+  readTime: string;
+  coverImage: string;
+  corridorTag: string;
+  featured?: boolean;
+  tags: string[];
 }
 
 export interface ContactInquiry {

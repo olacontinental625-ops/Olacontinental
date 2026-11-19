@@ -11,7 +11,7 @@ import { VerificationSection } from './components/VerificationSection';
 import { ReviewsSection } from './components/ReviewsSection';
 import { AboutSection } from './components/AboutSection';
 import { ContactSection } from './components/ContactSection';
-import { PaymentLandingPage } from './components/PaymentLandingPage';
+import { BlogsSection } from './components/BlogsSection';
 import { BuildingConstructionShowcase } from './components/BuildingConstructionShowcase';
 import { BuyerEducationModal } from './components/BuyerEducationModal';
 import { DocumentVaultModal } from './components/DocumentVaultModal';
@@ -42,11 +42,11 @@ import {
   Mail,
   Home,
   CheckSquare,
-  CreditCard
+  BookOpen
 } from 'lucide-react';
 
 export default function App() {
-  // Page Routing State ('home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'pay')
+  // Page Routing State ('home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'blogs')
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [activeContactInquiry, setActiveContactInquiry] = useState<ContactInquiry | null>(null);
 
@@ -54,7 +54,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, '').toLowerCase().trim();
-      if (['about', 'properties', 'corridors', 'verification', 'testimonials', 'contact', 'pay'].includes(rawHash)) {
+      if (['about', 'properties', 'corridors', 'verification', 'testimonials', 'contact', 'blogs'].includes(rawHash)) {
         setCurrentPage(rawHash as PageType);
       } else if (!rawHash || rawHash === 'home') {
         setCurrentPage('home');
@@ -375,31 +375,31 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Portal Card 7: Official Payment & Client Retainer Portal */}
+                {/* Portal Card 7: Real Estate & Civil Engineering Blogs */}
                 <div
-                  onClick={() => navigateTo('pay')}
+                  onClick={() => navigateTo('blogs')}
                   className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between md:col-span-2 lg:col-span-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-semibold tracking-widest uppercase text-[#25D366] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-[#25D366]" />
-                          <span>Paystack Gateway · Instant Settlement</span>
+                        <span className="text-[10px] font-semibold tracking-widest uppercase text-[#38bdf8] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-[#38bdf8]" />
+                          <span>Field Journal & Engineering Insights</span>
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">256-bit Encrypted</span>
+                        <span className="text-[10px] text-slate-400 font-mono">Ogbomoso · Lagos · Diaspora</span>
                       </div>
                       <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors">
-                        Official Payment & Client Retainer Gateway
+                        Real Estate & Civil Construction Blogs
                       </h3>
                       <p className="text-xs text-slate-300 leading-relaxed mt-1 max-w-3xl">
-                        Settle fees securely for Tuesday on-site walkthroughs (₦25k), Ministry of Lands cadastral charting & survey deposits (₦250k), architectural design retainers (₦350k), or custom project milestones via Paystack or direct corporate bank transfer.
+                        Explore technical guides written by Engineer Samuel Aleji covering Oyo State cadastral charting, LAUTECH student hostel ROI, BS 8110 structural standards, and remote diaspora building protocols.
                       </p>
                     </div>
 
                     <div className="shrink-0 flex items-center gap-3">
                       <span className="px-4 py-2 text-xs font-semibold text-white bg-[#2563eb] group-hover:bg-[#1d4ed8] rounded-xl transition-colors flex items-center gap-2 shadow-md">
-                        <span>Open Payment Gateway</span>
+                        <span>Read Editorial Blogs</span>
                         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </span>
                     </div>
@@ -778,13 +778,42 @@ export default function App() {
         )}
 
         {/* =========================================================================
-            VIEW 8: DEDICATED PAYMENT & RETAINER LANDING PAGE (Paystack Gateway)
+            VIEW 8: DEDICATED REAL ESTATE & CONSTRUCTION BLOGS PAGE (Royal Blue Theme)
            ========================================================================= */}
-        {currentPage === 'pay' && (
-          <PaymentLandingPage
-            onOpenChat={() => setIsChatOpen(true)}
-            onNavigateHome={() => navigateTo('home')}
-          />
+        {currentPage === 'blogs' && (
+          <div className="min-h-[80vh] bg-[#07132b]">
+            {/* Dedicated Page Breadcrumb Banner */}
+            <div className="bg-[#0b1e42] border-b border-[#1d4ed8]/30 py-5 px-4 sm:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-[#bfdbfe]">
+                  <button
+                    onClick={() => navigateTo('home')}
+                    className="hover:text-[#38bdf8] transition-colors flex items-center gap-1.5 cursor-pointer font-semibold text-white"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-[#38bdf8]" />
+                    <span>Homepage</span>
+                  </button>
+                  <span className="text-white/30">/</span>
+                  <span className="text-[#38bdf8] font-semibold">Real Estate & Civil Engineering Blogs</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigateTo('properties')}
+                    className="text-xs font-medium text-[#bfdbfe] hover:text-white transition-colors cursor-pointer"
+                  >
+                    Browse Properties →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <BlogsSection
+              onOpenViewing={() => handleBookViewing(null)}
+              onOpenChat={() => setIsChatOpen(true)}
+              onNavigateProperties={() => navigateTo('properties')}
+            />
+          </div>
         )}
       </main>
 

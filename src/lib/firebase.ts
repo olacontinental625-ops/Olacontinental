@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { LeadSubmission, ViewingRequest, InspectionReview, PaymentRecord, ContactInquiry } from '../types';
+import { LeadSubmission, ViewingRequest, InspectionReview, BlogPost, ContactInquiry } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -268,16 +268,16 @@ export function listenToLeads(callback: (leads: LeadSubmission[]) => void): () =
   }
 }
 
-// Create Payment Record (Paystack & Direct Bank Transfer)
-export async function createFirestorePayment(payment: PaymentRecord): Promise<string> {
-  const path = 'payments';
+// Create Blog Post in Firestore
+export async function createFirestoreBlog(blog: Omit<BlogPost, 'id'> & { id?: string }): Promise<string> {
+  const path = 'blogs';
   try {
-    const docId = payment.reference || `pay-${Date.now()}`;
+    const docId = blog.id || `blog-${Date.now()}`;
     const docRef = doc(db, path, docId);
     await setDoc(docRef, {
-      ...payment,
+      ...blog,
       id: docId,
-      createdAt: payment.createdAt || new Date().toISOString(),
+      publishedAt: blog.publishedAt || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
       timestamp: serverTimestamp(),
     });
     return docId;
@@ -287,32 +287,31 @@ export async function createFirestorePayment(payment: PaymentRecord): Promise<st
   }
 }
 
-// Real-time listener for Payments (Admin portal)
-export function listenToPayments(callback: (payments: PaymentRecord[]) => void): () => void {
-  const path = 'payments';
+// Real-time listener for Published Blog Posts
+export function listenToBlogs(callback: (blogs: BlogPost[]) => void): () => void {
+  const path = 'blogs';
   try {
     const colRef = collection(db, path);
     return onSnapshot(
       colRef,
       (snapshot) => {
-        const loaded: PaymentRecord[] = [];
+        const loaded: BlogPost[] = [];
         snapshot.forEach((d) => {
           const data = d.data();
           loaded.push({
             id: d.id,
-            reference: data.reference || d.id,
-            amount: Number(data.amount) || 0,
-            currency: data.currency || 'NGN',
-            clientName: data.clientName || 'Anonymous Client',
-            clientEmail: data.clientEmail || '',
-            clientPhone: data.clientPhone || '',
-            serviceCategory: data.serviceCategory || 'Property / Civil Construction Service',
-            propertyOrProjectTitle: data.propertyOrProjectTitle || '',
-            paymentMethod: data.paymentMethod || 'paystack',
-            status: data.status || 'success',
-            invoiceNumber: data.invoiceNumber || '',
-            notes: data.notes || '',
-            createdAt: data.createdAt || '',
+            title: data.title || 'Untitled Insight',
+            excerpt: data.excerpt || '',
+            content: Array.isArray(data.content) ? data.content : [String(data.content || '')],
+            category: data.category || 'Market Intelligence',
+            author: data.author || 'Engr. Samuel Aleji',
+            authorRole: data.authorRole || 'Principal Consultant & Civil Engineer',
+            publishedAt: data.publishedAt || 'Recent',
+            readTime: data.readTime || '4 min read',
+            coverImage: data.coverImage || '/assets/aistudio/IMG-20261031-WA0089_fc7755dc.jpg',
+            corridorTag: data.corridorTag || 'Ogbomoso & Lagos',
+            featured: Boolean(data.featured),
+            tags: Array.isArray(data.tags) ? data.tags : [],
           });
         });
         callback(loaded);

@@ -161,7 +161,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
         purpose: 'Buy',
       }).catch((err) => console.warn('Firestore lead creation caught:', err));
 
-      // 2. Save to server API (which triggers SendPulse CRM / Address book sync!)
+      // 2. Save to server API
       const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +170,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           source: 'Ola AI Assistant',
         }),
       });
-      const data = await res.json();
+      await res.json();
 
       setLeadSuccess(true);
 
@@ -178,7 +178,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
       const systemConfirmMsg: ChatMessage = {
         id: `lead-confirm-${Date.now()}`,
         sender: 'assistant',
-        text: `✅ **Lead Successfully Dropped & Dispatched!**\n\nThank you, **${leadForm.name}**. Your inquiry regarding **${leadForm.propertyType}** in **${leadForm.corridor}** has been securely forwarded to Alhaji Olaoluwa and our senior surveyor desk (and synchronized to our SendPulse CRM).\n\nOur team will contact you directly via WhatsApp or phone at **${leadForm.phone}**.`,
+        text: `✅ **Lead Successfully Dropped & Dispatched!**\n\nThank you, **${leadForm.name}**. Your inquiry regarding **${leadForm.propertyType}** in **${leadForm.corridor}** has been securely saved and forwarded to our executive and senior surveyor desk.\n\nOur team will contact you directly via WhatsApp or phone at **${leadForm.phone}**.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -423,7 +423,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
             <div className="mb-4">
               <h4 className="font-display text-base font-bold text-[#FAF4E8]">Drop Your Lead & Property Inquiry</h4>
               <p className="text-[11px] text-white/70 mt-1">
-                Provide your details below. Ola AI immediately logs your request into our secure database and forwards it to Alhaji Olaoluwa and SendPulse CRM for direct follow-up.
+                Provide your details below. Ola AI immediately logs your request into our secure cloud database for direct follow-up.
               </p>
             </div>
 

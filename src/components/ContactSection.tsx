@@ -83,7 +83,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
         }).catch((err) => console.warn('Firestore lead submit warning:', err)),
       ]);
 
-      // 2. Post to API backend (with SendPulse CRM sync)
+      // 2. Post to API backend
       await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

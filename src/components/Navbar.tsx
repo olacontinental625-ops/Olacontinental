@@ -30,7 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Verification', page: 'verification' },
     { label: 'Testimonials', page: 'testimonials' },
     { label: 'Contact', page: 'contact' },
-    { label: 'Pay Retainer', page: 'pay' },
+    { label: 'Blogs', page: 'blogs' },
   ];
 
   const isHome = currentPage === 'home';
@@ -249,17 +249,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
-                onNavigate('pay');
+                onNavigate('blogs');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`text-left px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between ${
-                currentPage === 'pay'
+                currentPage === 'blogs'
                   ? 'bg-[#1d4ed8]/20 text-[#38bdf8] font-semibold border-l-2 border-[#38bdf8]'
                   : 'text-slate-200 hover:bg-white/5'
               }`}
             >
-              <span>Pay Retainer & Client Fees (Paystack)</span>
-              <span className="text-[10px] font-mono text-[#25D366] bg-[#25D366]/20 px-1.5 py-0.5 rounded">Secure</span>
+              <span>Blogs</span>
+              <span className="text-[10px] font-mono text-[#38bdf8] bg-[#1d4ed8]/20 px-1.5 py-0.5 rounded">Articles</span>
             </button>
             <button
               onClick={() => {

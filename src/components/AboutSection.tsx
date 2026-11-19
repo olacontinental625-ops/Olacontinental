@@ -1053,7 +1053,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({
               <span className="font-data text-xs font-bold text-[#38bdf8] bg-[#07132b] border border-[#38bdf8]/30 px-2 py-1 rounded">2026</span>
               <h4 className="font-display text-lg font-bold text-white mt-3 mb-1">AI Concierge & Live CRM</h4>
               <p className="text-xs text-[#bfdbfe] leading-relaxed">
-                Deployed Ola AI Concierge, automated SendPulse CRM lead collection, and real-time cloud title verification for global clients.
+                Deployed Ola AI Concierge, automated cloud lead collection, and real-time title verification for global clients.
               </p>
             </div>
           </div>
