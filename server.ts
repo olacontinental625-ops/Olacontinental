@@ -1,7 +1,7 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -30,11 +30,39 @@ const ai = apiKey
     })
   : null;
 
-// Local JSON storage helper for dual-sync resilience
-const DATA_DIR = path.resolve(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Local JSON storage helper for dual-sync resilience (falls back to /tmp if app root is read-only)
+const SEED_DATA_DIR = path.resolve(__dirname, 'data');
+function resolveWritableDataDir(): string {
+  try {
+    if (!fs.existsSync(SEED_DATA_DIR)) {
+      fs.mkdirSync(SEED_DATA_DIR, { recursive: true });
+    }
+    fs.accessSync(SEED_DATA_DIR, fs.constants.W_OK);
+    return SEED_DATA_DIR;
+  } catch {
+    const tmpDir = path.join(os.tmpdir(), 'ola-continental-data');
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    // Seed read-only baked files (like admin-auth.json / reviews.json) into writable tmpDir
+    try {
+      if (fs.existsSync(SEED_DATA_DIR)) {
+        for (const entry of fs.readdirSync(SEED_DATA_DIR)) {
+          const src = path.join(SEED_DATA_DIR, entry);
+          const dst = path.join(tmpDir, entry);
+          if (!fs.existsSync(dst) && fs.statSync(src).isFile()) {
+            fs.copyFileSync(src, dst);
+          }
+        }
+      }
+    } catch {
+      // ignore seed copy errors
+    }
+    return tmpDir;
+  }
 }
+
+const DATA_DIR = resolveWritableDataDir();
 
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const VIEWINGS_FILE = path.join(DATA_DIR, 'viewings.json');
@@ -49,8 +77,12 @@ const SESSION_SECRET_FILE = path.join(DATA_DIR, 'session-secret.key');
 const HERO_VIDEO_FILE = path.join(DATA_DIR, 'hero-video.json');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+} catch {
+  // ignore
 }
 
 app.use('/uploads', express.static(UPLOADS_DIR));
@@ -1409,6 +1441,7 @@ app.delete('/api/hero-video', (req, res) => {
 // Vite middleware integration in development, static files in production
 async function startServer() {
   if (!isProd) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -1418,6 +1451,9 @@ async function startServer() {
     const distPath = path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API route not found' });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
