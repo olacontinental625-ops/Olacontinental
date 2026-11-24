@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { OlaLogoMark } from './OlaLogoMark';
 import {
   ShieldCheck,
   Award,
@@ -317,14 +318,18 @@ export const AboutSection: React.FC<AboutSectionProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="max-w-3xl mb-14">
+          <div className="mb-5">
+            <OlaLogoMark variant="section" />
+          </div>
+
           <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold tracking-widest uppercase text-[#38bdf8] mb-3">
-            <span>ABOUT OLA CONTINENTAL PROPERTIES & CIVIL CONSTRUCTION</span>
+            <span>ABOUT US · OLA CONTINENTAL PROPERTIES &amp; CIVIL CONSTRUCTION</span>
             <span aria-hidden="true" className="text-white/40">·</span>
             <span className="font-data text-xs text-[#93c5fd]/80">ESTABLISHED 2006</span>
           </div>
 
           <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">
-            Operating Continuously Since 2006.
+            About Us: Operating Continuously Since 2006.
           </h1>
 
           <p className="mt-4 text-base sm:text-lg text-[#bfdbfe] leading-relaxed font-normal">

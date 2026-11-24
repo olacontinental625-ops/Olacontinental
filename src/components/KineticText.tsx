@@ -1,58 +1,52 @@
 import React, { useState, useEffect } from 'react';
 
 interface CategoryItem {
-  title: string;
+  goldText: string;
+  whiteText: string;
   tag: string;
-  accent: string;
 }
 
 const CATEGORIES: CategoryItem[] = [
   {
-    title: 'LUXURY REAL ESTATE',
+    goldText: 'LUXURY',
+    whiteText: 'REAL ESTATE',
     tag: 'Prestige Residential Holdings',
-    accent: '#F3E8D0',
   },
   {
-    title: 'STUDENT HOSTELS',
+    goldText: 'STUDENT',
+    whiteText: 'HOSTELS',
     tag: 'Campus Accommodations & Lodges',
-    accent: '#C5A880',
   },
   {
-    title: 'VERIFIED LAND IN OGBOMOSO',
+    goldText: 'VERIFIED LAND',
+    whiteText: 'IN OGBOMOSO',
     tag: 'Unencumbered Titles & Surveyed Plots',
-    accent: '#FAF4E8',
   },
   {
-    title: 'EXECUTIVE DUPLEXES & FLATS',
+    goldText: 'EXECUTIVE',
+    whiteText: 'DUPLEXES & FLATS',
     tag: 'Hospital & Residential Corridors',
-    accent: '#F3E8D0',
   },
   {
-    title: 'STRATEGIC COMMERCIAL PLOTS',
+    goldText: 'STRATEGIC',
+    whiteText: 'COMMERCIAL PLOTS',
     tag: 'Expressway & Commercial Belts',
-    accent: '#C5A880',
-  },
-  {
-    title: 'BUILD THE RIGHT FUTURE',
-    tag: 'Direct Landowner Mandates',
-    accent: '#FAF4E8',
   },
 ];
 
 export const KineticText: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipping, setIsFlipping] = useState(false);
+  const [isPoppingOut, setIsPoppingOut] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const timer = setInterval(() => {
-      // Trigger smooth exit flip
-      setIsFlipping(true);
+      setIsPoppingOut(true);
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % CATEGORIES.length);
-        setIsFlipping(false);
-      }, 400); // half transition duration
-    }, 3800);
+        setIsPoppingOut(false);
+      }, 160);
+    }, 1350);
     return () => clearInterval(timer);
   }, []);
 
@@ -76,33 +70,34 @@ export const KineticText: React.FC = () => {
       className="perspective-1000 py-2 sm:py-3 cursor-default select-none overflow-hidden"
       style={{
         transform: `perspective(1000px) rotateX(${mousePos.y * -8}deg) rotateY(${mousePos.x * 8}deg)`,
-        transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-      <div className="min-h-[5.5rem] sm:min-h-[6.5rem] md:min-h-[7.5rem] flex flex-col justify-center items-start">
+      <div className="min-h-[5rem] sm:min-h-[6rem] md:min-h-[6.5rem] flex flex-col justify-center items-start">
         <div
-          className={`preserve-3d backface-hidden transform-gpu transition-all duration-500 ease-out ${
-            isFlipping
-              ? 'opacity-0 -translate-y-4 rotate-x-45 scale-95'
-              : 'opacity-100 translate-y-0 rotate-x-0 scale-100'
+          className={`preserve-3d backface-hidden transform-gpu transition-all duration-200 ${
+            isPoppingOut
+              ? 'opacity-0 scale-75 translate-y-2'
+              : 'opacity-100 scale-100 translate-y-0'
           }`}
+          style={{
+            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}
         >
-          {/* Tag / Context Kicker - Clean unboxed metadata discipline */}
-          <div className="text-xs sm:text-sm font-medium tracking-widest uppercase text-[#C5A880] mb-1.5 flex items-center gap-2">
-            <span>{current.tag}</span>
-            <span className="text-[#8B6347] font-normal" aria-hidden="true">·</span>
-            <span className="font-data text-[11px] text-[#FAF4E8]/60">0{currentIndex + 1} / 06</span>
+          {/* Kicker in Gold (no countdown number) */}
+          <div className="text-xs sm:text-sm font-semibold tracking-widest uppercase text-[#F5C451] mb-1.5">
+            {current.tag}
           </div>
 
-          {/* Kinetic Title */}
+          {/* Kinetic Title in Gold & White */}
           <h2
-            className="font-display font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl uppercase"
+            className="font-display font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl uppercase leading-tight"
             style={{
-              color: current.accent,
-              textShadow: '0 4px 20px rgba(0, 0, 0, 0.6)',
+              textShadow: '0 4px 20px rgba(0, 0, 0, 0.65)',
             }}
           >
-            {current.title}
+            <span className="text-[#F5C451]">{current.goldText}</span>{' '}
+            <span className="text-white">{current.whiteText}</span>
           </h2>
         </div>
       </div>

@@ -2,44 +2,234 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function for document identifiers
-    function isValidId(id) {
-      return id is string && id.size() <= 128;
-    }
-
-    // Leads Collection: Public inquiry submissions and broker review
-    match /leads/{leadId} {
-      allow read, write: if true;
-    }
-
-    // Viewing Appointments Collection: Scheduled site visits and live video tours
-    match /viewings/{viewingId} {
-      allow read, write: if true;
-    }
-
-    // Property Reviews Collection: Client feedback, ratings, and field notes
-    match /reviews/{reviewId} {
-      allow read, write: if true;
-    }
-
-    // Direct Contacts & Project Quotes Collection
-    match /contacts/{contactId} {
-      allow read, write: if true;
-    }
-
-    // Inquiries Collection
-    match /inquiries/{inquiryId} {
-      allow read, write: if true;
-    }
-
-    // Connectivity, verification, and diagnostics collection
-    match /test/{docId} {
-      allow read, write: if true;
-    }
-
-    // Enable access across all collections and documents
+    // Global safety net: default deny everything
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (
+          request.auth.token.email == 'olacontinental625@gmail.com' &&
+          request.auth.token.email_verified == true
+        )
+      );
+    }
+
+    function isNonEmptyString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptionalString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // Schema Validators
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'fullName', 'phone', 'email', 'whatsapp', 'createdAt', 'source'])
+        && data.keys().hasOnly(['id', 'fullName', 'phone', 'email', 'whatsapp', 'createdAt', 'source', 'status'])
+        && isValidId(data.id)
+        && isNonEmptyString(data.fullName, 2, 120)
+        && isNonEmptyString(data.phone, 5, 40)
+        && isNonEmptyString(data.email, 5, 150)
+        && isNonEmptyString(data.whatsapp, 5, 40)
+        && isNonEmptyString(data.createdAt, 5, 50)
+        && isNonEmptyString(data.source, 2, 80)
+        && (!('status' in data) || isOptionalString(data.status, 40));
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['name', 'phone'])
+        && data.keys().hasOnly(['name', 'phone', 'email', 'purpose', 'propertyType', 'corridor', 'budget', 'message', 'createdAt', 'status'])
+        && isNonEmptyString(data.name, 2, 120)
+        && isNonEmptyString(data.phone, 5, 40)
+        && (!('email' in data) || isOptionalString(data.email, 150))
+        && (!('purpose' in data) || isOptionalString(data.purpose, 50))
+        && (!('propertyType' in data) || isOptionalString(data.propertyType, 80))
+        && (!('corridor' in data) || isOptionalString(data.corridor, 100))
+        && (!('budget' in data) || isOptionalString(data.budget, 80))
+        && (!('message' in data) || isOptionalString(data.message, 1000))
+        && (!('createdAt' in data) || isOptionalString(data.createdAt, 50))
+        && (!('status' in data) || isOptionalString(data.status, 40));
+    }
+
+    function isValidViewing(data) {
+      return data.keys().hasAll(['clientName', 'phone', 'preferredDate'])
+        && data.keys().hasOnly(['propertyId', 'propertyTitle', 'clientName', 'phone', 'email', 'preferredDate', 'inspectionType', 'notes', 'createdAt', 'status'])
+        && isNonEmptyString(data.clientName, 2, 120)
+        && isNonEmptyString(data.phone, 5, 40)
+        && isNonEmptyString(data.preferredDate, 2, 60)
+        && (!('propertyId' in data) || isOptionalString(data.propertyId, 100))
+        && (!('propertyTitle' in data) || isOptionalString(data.propertyTitle, 200))
+        && (!('email' in data) || isOptionalString(data.email, 150))
+        && (!('inspectionType' in data) || isOptionalString(data.inspectionType, 120))
+        && (!('notes' in data) || isOptionalString(data.notes, 1000))
+        && (!('createdAt' in data) || isOptionalString(data.createdAt, 50))
+        && (!('status' in data) || isOptionalString(data.status, 40));
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['clientName', 'rating', 'comment'])
+        && data.keys().hasOnly(['propertyId', 'clientName', 'rating', 'inspectionDate', 'comment', 'verified'])
+        && isNonEmptyString(data.clientName, 2, 120)
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && isNonEmptyString(data.comment, 3, 1000)
+        && (!('propertyId' in data) || isOptionalString(data.propertyId, 100))
+        && (!('inspectionDate' in data) || isOptionalString(data.inspectionDate, 60))
+        && (!('verified' in data) || data.verified is bool);
+    }
+
+    function isValidContact(data) {
+      return data.keys().hasAll(['name', 'phone'])
+        && data.keys().hasOnly(['id', 'name', 'phone', 'email', 'serviceType', 'corridor', 'budget', 'message', 'createdAt', 'timestamp', 'status'])
+        && isNonEmptyString(data.name, 2, 120)
+        && isNonEmptyString(data.phone, 5, 40)
+        && (!('id' in data) || isValidId(data.id))
+        && (!('email' in data) || isOptionalString(data.email, 150))
+        && (!('serviceType' in data) || isOptionalString(data.serviceType, 100))
+        && (!('corridor' in data) || isOptionalString(data.corridor, 100))
+        && (!('budget' in data) || isOptionalString(data.budget, 80))
+        && (!('message' in data) || isOptionalString(data.message, 1500))
+        && (!('createdAt' in data) || isOptionalString(data.createdAt, 50))
+        && (!('status' in data) || isOptionalString(data.status, 40));
+    }
+
+    function isValidBlog(data) {
+      return data.keys().hasAll(['id', 'title', 'excerpt', 'category'])
+        && data.keys().hasOnly(['id', 'title', 'excerpt', 'content', 'category', 'author', 'authorRole', 'publishedAt', 'readTime', 'coverImage', 'corridorTag', 'featured', 'tags', 'timestamp'])
+        && isValidId(data.id)
+        && isNonEmptyString(data.title, 3, 200)
+        && isNonEmptyString(data.excerpt, 5, 500)
+        && isNonEmptyString(data.category, 2, 60)
+        && (!('content' in data) || (data.content is list && data.content.size() <= 50))
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 15))
+        && (!('author' in data) || isOptionalString(data.author, 100))
+        && (!('authorRole' in data) || isOptionalString(data.authorRole, 100))
+        && (!('publishedAt' in data) || isOptionalString(data.publishedAt, 60))
+        && (!('readTime' in data) || isOptionalString(data.readTime, 30))
+        && (!('coverImage' in data) || isOptionalString(data.coverImage, 300))
+        && (!('corridorTag' in data) || isOptionalString(data.corridorTag, 100))
+        && (!('featured' in data) || data.featured is bool);
+    }
+
+    function isValidConstruction(data) {
+      return data.keys().hasAll(['id', 'title', 'category', 'location'])
+        && data.keys().hasOnly(['id', 'title', 'category', 'location', 'phaseOrType', 'specs', 'completionLabel', 'image', 'description', 'createdAt', 'timestamp'])
+        && isValidId(data.id)
+        && isNonEmptyString(data.title, 2, 200)
+        && (data.category == 'ongoing' || data.category == 'finished')
+        && isNonEmptyString(data.location, 2, 120)
+        && (!('phaseOrType' in data) || isOptionalString(data.phaseOrType, 100))
+        && (!('specs' in data) || isOptionalString(data.specs, 200))
+        && (!('completionLabel' in data) || isOptionalString(data.completionLabel, 60))
+        && (!('image' in data) || isOptionalString(data.image, 300))
+        && (!('description' in data) || isOptionalString(data.description, 1000))
+        && (!('createdAt' in data) || isOptionalString(data.createdAt, 50));
+    }
+
+    function isValidProperty(data) {
+      return data.keys().hasAll(['id', 'title', 'purpose', 'type', 'corridor', 'priceDisplay', 'status'])
+        && isValidId(data.id)
+        && isNonEmptyString(data.title, 2, 200)
+        && isNonEmptyString(data.purpose, 2, 30)
+        && isNonEmptyString(data.type, 2, 60)
+        && isNonEmptyString(data.corridor, 2, 100)
+        && isNonEmptyString(data.priceDisplay, 1, 60)
+        && isNonEmptyString(data.status, 2, 40);
+    }
+
+    // Registered Customers (PII isolated: public registration allowed with strict schema; reads/edits strictly Admin-only)
+    match /customers/{customerId} {
+      allow create: if isValidId(customerId)
+        && isValidCustomer(incoming())
+        && incoming().id == customerId;
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && isValidId(customerId) && isValidCustomer(incoming())
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(customerId);
+    }
+
+    // Leads Collection (PII protected: public create, Admin-only read/update/delete)
+    match /leads/{leadId} {
+      allow create: if isValidId(leadId) && isValidLead(incoming());
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && isValidId(leadId) && isValidLead(incoming());
+      allow delete: if isAdmin() && isValidId(leadId);
+    }
+
+    // Viewing Appointments Collection (PII protected: public create, Admin-only read/update/delete)
+    match /viewings/{viewingId} {
+      allow create: if isValidId(viewingId) && isValidViewing(incoming());
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && isValidId(viewingId) && isValidViewing(incoming());
+      allow delete: if isAdmin() && isValidId(viewingId);
+    }
+
+    // Direct Contacts & Project Quotes Collection (PII protected: public create, Admin-only read/update/delete)
+    match /contacts/{contactId} {
+      allow create: if isValidId(contactId) && isValidContact(incoming());
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && isValidId(contactId) && isValidContact(incoming());
+      allow delete: if isAdmin() && isValidId(contactId);
+    }
+
+    // Property Reviews Collection (Public testimonials, validated creation, admin moderation)
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId);
+      allow list: if true;
+      allow create: if isValidId(reviewId) && isValidReview(incoming());
+      allow update: if isAdmin() && isValidId(reviewId) && isValidReview(incoming());
+      allow delete: if isAdmin() && isValidId(reviewId);
+    }
+
+    // Field Blogs Collection (Public read, Admin-only publish/edit/delete)
+    match /blogs/{blogId} {
+      allow get: if isValidId(blogId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(blogId) && isValidBlog(incoming()) && incoming().id == blogId;
+      allow update: if isAdmin() && isValidId(blogId) && isValidBlog(incoming());
+      allow delete: if isAdmin() && isValidId(blogId);
+    }
+
+    // Dynamic Construction Projects (Public read, Admin-only publish/edit/delete)
+    match /constructions/{projectId} {
+      allow get: if isValidId(projectId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(projectId) && isValidConstruction(incoming()) && incoming().id == projectId;
+      allow update: if isAdmin() && isValidId(projectId) && isValidConstruction(incoming());
+      allow delete: if isAdmin() && isValidId(projectId);
+    }
+
+    // Dynamic Property Listings (Public read, Admin-only publish/edit/delete)
+    match /properties/{propertyId} {
+      allow get: if isValidId(propertyId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(propertyId) && isValidProperty(incoming()) && incoming().id == propertyId;
+      allow update: if isAdmin() && isValidId(propertyId) && isValidProperty(incoming());
+      allow delete: if isAdmin() && isValidId(propertyId);
+    }
+
+    // Connectivity diagnostic doc
+    match /test/{docId} {
+      allow get: if docId == 'connection';
     }
   }
 }

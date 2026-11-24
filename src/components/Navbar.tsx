@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Menu, X, Phone, ShieldCheck, Compass, Sparkles, Home, Building2, MapPin, Award, MessageSquare, HardHat, Mail } from 'lucide-react';
-import { PageType } from '../types';
+import { Menu, X, Phone, Sparkles, UserCheck, Lock } from 'lucide-react';
+import { PageType, CustomerProfile } from '../types';
+import { OlaLogoMark } from './OlaLogoMark';
 
 interface NavbarProps {
   currentPage: PageType;
@@ -10,6 +11,7 @@ interface NavbarProps {
   onOpenChat: () => void;
   onOpenEducation: () => void;
   onOpenVault: () => void;
+  customerProfile: CustomerProfile | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,57 +20,49 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenViewing,
   onOpenMatcher,
   onOpenChat,
-  onOpenEducation,
-  onOpenVault,
+  customerProfile,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems: { label: string; page: PageType }[] = [
-    { label: 'About', page: 'about' },
+    { label: 'About Us', page: 'about' },
     { label: 'Properties', page: 'properties' },
     { label: 'Corridors', page: 'corridors' },
-    { label: 'Verification', page: 'verification' },
-    { label: 'Testimonials', page: 'testimonials' },
-    { label: 'Contact', page: 'contact' },
+    { label: 'Constructions', page: 'constructions' },
     { label: 'Blogs', page: 'blogs' },
   ];
 
   const isHome = currentPage === 'home';
+  const isLoginActive = currentPage === 'customer-login' || currentPage === 'admin-login';
 
   return (
     <header className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors ${
-      isHome 
-        ? 'bg-[#181a20]/95 border-slate-700/60 text-slate-100' 
+      isHome
+        ? 'bg-[#181a20]/95 border-slate-700/60 text-slate-100'
         : 'bg-[#07132b]/95 border-[#1d4ed8]/30 text-[#F0F6FF]'
     }`}>
       {/* 3-Zone Top Bar Contract */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-6">
-        {/* Zone 1: Brand Wordmark */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+        {/* Zone 1: Brand Wordmark with Logo Crest */}
         <button
           onClick={() => {
             onNavigate('home');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          className="text-left group cursor-pointer focus:outline-none"
+          className="text-left group cursor-pointer focus:outline-none shrink-0"
+          aria-label="Ola Continental Properties & Associate Home"
         >
-          <span className="text-xl sm:text-2xl font-bold font-display tracking-tight text-white group-hover:text-[#38bdf8] transition-colors whitespace-nowrap block">
-            Ola Continental Properties
-          </span>
-          <span className={`text-[10px] tracking-widest uppercase font-semibold block -mt-0.5 ${
-            isHome ? 'text-[#38bdf8]' : 'text-[#38bdf8]'
-          }`}>
-            & Building Construction · Est. 2006
-          </span>
+          <OlaLogoMark variant="navbar" />
         </button>
 
         {/* Zone 2: Navigation Links with active page state */}
-        <nav className="hidden lg:flex items-center gap-5 text-sm font-medium">
+        <nav className="hidden lg:flex items-center gap-4 text-[13px] font-medium">
           <button
             onClick={() => {
               onNavigate('home');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className={`py-1.5 transition-colors cursor-pointer border-b-2 ${
+            className={`py-1.5 transition-colors cursor-pointer border-b-2 whitespace-nowrap ${
               currentPage === 'home'
                 ? 'text-[#38bdf8] border-[#38bdf8] font-semibold'
                 : 'text-slate-300 hover:text-white border-transparent'
@@ -100,17 +94,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           })}
 
           <button
-            onClick={onOpenEducation}
-            className={`transition-colors whitespace-nowrap py-1.5 cursor-pointer border-b-2 border-transparent ${
-              isHome ? 'text-slate-300 hover:text-white' : 'text-[#bfdbfe] hover:text-white'
+            onClick={() => {
+              onNavigate('customer-login');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`py-1.5 transition-colors cursor-pointer border-b-2 whitespace-nowrap inline-flex items-center gap-1 ${
+              isLoginActive
+                ? 'text-[#F5C451] border-[#F5C451] font-semibold'
+                : isHome
+                  ? 'text-slate-300 hover:text-white border-transparent'
+                  : 'text-[#bfdbfe] hover:text-white border-transparent'
             }`}
           >
-            Buyer Guides
+            <UserCheck className="w-3.5 h-3.5 text-[#F5C451]" />
+            <span>{customerProfile ? customerProfile.fullName.split(' ')[0] : 'Sign Up / Login'}</span>
           </button>
         </nav>
 
-        {/* Zone 3: 1 Primary Action + Quick Assistants */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: Quick AI & 1 Primary Action */}
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={onOpenChat}
             className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer ${
@@ -126,7 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onOpenViewing}
-            className="px-4 py-2 text-xs font-semibold tracking-wide uppercase text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-lg transition-all shadow-md shadow-[#2563eb]/20 whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3.5 py-2 text-xs font-semibold tracking-wide uppercase text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-lg transition-all shadow-md shadow-[#2563eb]/20 whitespace-nowrap shrink-0 cursor-pointer"
           >
             Schedule Viewing
           </button>
@@ -174,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-200 hover:bg-white/5'
               }`}
             >
-              About Engineer Samuel Aleji & Story (Since 2006)
+              About Us · Engineer Samuel Aleji &amp; Story (Since 2006)
             </button>
             <button
               onClick={() => {
@@ -202,49 +204,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-200 hover:bg-white/5'
               }`}
             >
-              Operating Corridors (Ogbomoso & Mushin Lagos)
+              Operating Corridors (Ogbomoso &amp; Mushin Lagos)
             </button>
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
-                onNavigate('verification');
+                onNavigate('constructions');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`text-left px-3 py-2.5 rounded-lg transition-colors ${
-                currentPage === 'verification'
-                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] font-semibold border-l-2 border-[#38bdf8]'
+                currentPage === 'constructions'
+                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] font-semibold'
                   : 'text-slate-200 hover:bg-white/5'
               }`}
             >
-              Due Diligence & Title Verification
-            </button>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onNavigate('testimonials');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`text-left px-3 py-2.5 rounded-lg transition-colors ${
-                currentPage === 'testimonials'
-                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] font-semibold border-l-2 border-[#38bdf8]'
-                  : 'text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              Live Testimonials & Reviews
-            </button>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onNavigate('contact');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`text-left px-3 py-2.5 rounded-lg transition-colors ${
-                currentPage === 'contact'
-                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] font-semibold border-l-2 border-[#38bdf8]'
-                  : 'text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              Contact Us & Building Construction Division
+              Constructions (Ongoing &amp; Finished)
             </button>
             <button
               onClick={() => {
@@ -264,20 +238,32 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
-                onOpenEducation();
+                onNavigate('customer-login');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-left px-3 py-2.5 text-slate-300 hover:bg-white/5 rounded-lg"
+              className={`text-left px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between ${
+                currentPage === 'customer-login'
+                  ? 'bg-[#1d4ed8]/20 text-[#F5C451] font-semibold border-l-2 border-[#F5C451]'
+                  : 'text-[#F5C451] hover:bg-white/5'
+              }`}
             >
-              Buyer Education Hub
+              <span>Customer Sign Up / Login</span>
+              <UserCheck className="w-4 h-4" />
             </button>
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
-                onOpenVault();
+                onNavigate('admin-login');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-left px-3 py-2.5 text-slate-300 hover:bg-white/5 rounded-lg"
+              className={`text-left px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between ${
+                currentPage === 'admin-login'
+                  ? 'bg-[#1d4ed8]/20 text-[#38bdf8] font-semibold border-l-2 border-[#38bdf8]'
+                  : 'text-slate-300 hover:bg-white/5'
+              }`}
             >
-              Client Document Vault (Sample Titles)
+              <span>Owner Admin Login</span>
+              <Lock className="w-4 h-4 text-[#38bdf8]" />
             </button>
           </div>
 

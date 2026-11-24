@@ -7,20 +7,23 @@ import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { PropertyMatcherModal } from './components/PropertyMatcherModal';
 import { PropertyCompareModal } from './components/PropertyCompareModal';
 import { CorridorsSection } from './components/CorridorsSection';
-import { VerificationSection } from './components/VerificationSection';
 import { ReviewsSection } from './components/ReviewsSection';
 import { AboutSection } from './components/AboutSection';
-import { ContactSection } from './components/ContactSection';
+import { ConstructionsSection } from './components/ConstructionsSection';
 import { BlogsSection } from './components/BlogsSection';
+import { OlaLogoMark } from './components/OlaLogoMark';
 import { BuildingConstructionShowcase } from './components/BuildingConstructionShowcase';
 import { BuyerEducationModal } from './components/BuyerEducationModal';
 import { DocumentVaultModal } from './components/DocumentVaultModal';
 import { ScheduleViewingModal } from './components/ScheduleViewingModal';
 import { AiAssistantDrawer } from './components/AiAssistantDrawer';
 import { AdminDashboardModal } from './components/AdminDashboardModal';
+import { CustomerAuthSection } from './components/CustomerAuthSection';
+import { AdminSection } from './components/AdminSection';
 import { Footer } from './components/Footer';
 import { PROPERTIES } from './data/properties';
-import { Property, PropertyPurpose, PropertyType, Corridor, PageType, ContactInquiry } from './types';
+import { listenToProperties } from './lib/firebase';
+import { Property, PropertyPurpose, PropertyType, Corridor, PageType, ContactInquiry, CustomerProfile } from './types';
 import {
   Layers,
   Sparkles,
@@ -46,15 +49,74 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Page Routing State ('home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'blogs')
+  // Page Routing State ('home' | 'about' | 'properties' | 'corridors' | 'testimonials' | 'constructions' | 'blogs' | 'customer-login' | 'admin-login')
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [activeContactInquiry, setActiveContactInquiry] = useState<ContactInquiry | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [dynamicProperties, setDynamicProperties] = useState<any[]>([]);
+
+  // Restore customer session cookie & subscribe to live dynamic property catalog
+  useEffect(() => {
+    let active = true;
+    fetch('/api/customers/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data.authenticated && data.customer) {
+          setCustomerProfile(data.customer);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/properties')
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && Array.isArray(data.properties)) {
+          setDynamicProperties(data.properties);
+        }
+      })
+      .catch(() => {});
+
+    const unsubProps = listenToProperties((fsProps) => {
+      if (!active || fsProps.length === 0) return;
+      setDynamicProperties((prev) => {
+        const seen = new Set(fsProps.map((p) => p.id));
+        return [...fsProps, ...prev.filter((p) => !seen.has(p.id))];
+      });
+    });
+
+    return () => {
+      active = false;
+      unsubProps();
+    };
+  }, []);
+
+  const handleCustomerSignOut = async () => {
+    try {
+      await fetch('/api/customers/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    setCustomerProfile(null);
+  };
 
   // Sync with browser hash routing
   useEffect(() => {
     const handleHashChange = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, '').toLowerCase().trim();
-      if (['about', 'properties', 'corridors', 'verification', 'testimonials', 'contact', 'blogs'].includes(rawHash)) {
+      if (rawHash === 'contact') {
+        setCurrentPage('constructions');
+      } else if (
+        [
+          'about',
+          'properties',
+          'corridors',
+          'testimonials',
+          'constructions',
+          'blogs',
+          'customer-login',
+          'admin-login',
+        ].includes(rawHash)
+      ) {
         setCurrentPage(rawHash as PageType);
       } else if (!rawHash || rawHash === 'home') {
         setCurrentPage('home');
@@ -68,6 +130,16 @@ export default function App() {
 
   const navigateTo = (page: PageType) => {
     setCurrentPage(page);
+    if (page === 'properties') {
+      fetch('/api/properties')
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.properties)) {
+            setDynamicProperties(data.properties);
+          }
+        })
+        .catch(() => {});
+    }
     if (page === 'home') {
       if (window.location.hash) {
         window.history.pushState(null, '', window.location.pathname);
@@ -97,9 +169,25 @@ export default function App() {
   const [isViewingModalOpen, setIsViewingModalOpen] = useState(false);
   const [targetPropertyForViewing, setTargetPropertyForViewing] = useState<Property | null>(null);
 
+  const allProperties = useMemo<Property[]>(() => {
+    const overrideMap = new Map<string, any>();
+    const customFullProps: Property[] = [];
+    for (const rec of dynamicProperties) {
+      overrideMap.set(rec.id, rec);
+      if (!rec.isOverride && !PROPERTIES.some((bp) => bp.id === rec.id)) {
+        customFullProps.push(rec as Property);
+      }
+    }
+    const mergedBuiltIns = PROPERTIES.map((bp) => {
+      const ov = overrideMap.get(bp.id);
+      return ov ? { ...bp, ...ov } : bp;
+    });
+    return [...customFullProps, ...mergedBuiltIns];
+  }, [dynamicProperties]);
+
   // Filter Logic
   const filteredProperties = useMemo(() => {
-    return PROPERTIES.filter((property) => {
+    return allProperties.filter((property) => {
       // Purpose filter
       if (selectedPurpose !== 'All' && property.purpose !== selectedPurpose) {
         return false;
@@ -125,7 +213,7 @@ export default function App() {
       }
       return true;
     });
-  }, [selectedPurpose, selectedType, selectedCorridor, searchQuery]);
+  }, [allProperties, selectedPurpose, selectedType, selectedCorridor, searchQuery]);
 
   // Comparison Handlers
   const handleToggleCompare = (property: Property) => {
@@ -170,6 +258,7 @@ export default function App() {
         onOpenChat={() => setIsChatOpen(true)}
         onOpenEducation={() => setIsEducationOpen(true)}
         onOpenVault={() => setIsVaultOpen(true)}
+        customerProfile={customerProfile}
       />
 
       <main className="flex-1">
@@ -180,10 +269,10 @@ export default function App() {
            ========================================================================= */}
         {currentPage === 'home' && (
           <div className="bg-[#181a20]">
-            {/* Cinematic Background Video Hero with Autoplay & Architectural Grey Theme */}
+            {/* Split Hero: Text with Logo Design Concept on Left, Uploadable Video on Right */}
             <VideoHero
               onExploreProperties={() => navigateTo('properties')}
-              onOpenMatcher={() => setIsMatcherOpen(true)}
+              onOpenConstructions={() => navigateTo('constructions')}
               onOpenChat={() => setIsChatOpen(true)}
               onOpenViewing={() => handleBookViewing(null)}
             />
@@ -192,8 +281,11 @@ export default function App() {
             <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                 <div className="max-w-3xl">
+                  <div className="mb-4">
+                    <OlaLogoMark variant="section" />
+                  </div>
                   <div className="text-xs sm:text-sm font-semibold tracking-wider uppercase text-[#38bdf8] mb-2 flex items-center gap-2">
-                    <span>ARCHITECTURAL & CIVIL ENGINEERING DIVISIONS</span>
+                    <span>ARCHITECTURAL &amp; CIVIL ENGINEERING DIVISIONS</span>
                     <span aria-hidden="true" className="text-slate-500">·</span>
                     <span className="font-data text-xs text-slate-400">ESTABLISHED 2006</span>
                   </div>
@@ -208,7 +300,7 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => navigateTo('properties')}
-                    className="px-5 py-2.5 text-xs font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-[#2563eb]/20"
+                    className="px-5 py-2.5 text-xs font-semibold text-white bg-[#b91c1c] hover:bg-[#991b1b] rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg"
                   >
                     <span>Browse All Listings</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -216,9 +308,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Grid of 7 Luxury Portal Cards in Architectural Slate Grey */}
+              {/* Grid of 6 Luxury Portal Cards in Architectural Slate Grey */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Portal Card 1: Corporate Story & Founder */}
+                {/* Portal Card 1: About Us */}
                 <div
                   onClick={() => navigateTo('about')}
                   className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between"
@@ -231,45 +323,39 @@ export default function App() {
                       <Award className="w-5 h-5 text-[#38bdf8] group-hover:scale-110 transition-transform" />
                     </div>
                     <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors mb-3">
-                      Corporate Story & Founder
+                      About Us
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
                       Discover our 19-year legacy under Engineer Samuel Aleji, established in 2006. Learn about his civil engineering discipline, 180+ completed homes, 45+ student hostels, and executive leadership.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-[#38bdf8] group-hover:text-white transition-colors">
-                    <span>Read Full 19-Year Story</span>
+                    <span>Read About Us &amp; Our 19-Year Story</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
 
-                {/* Portal Card 2: Building & Civil Construction Division */}
+                {/* Portal Card 2: Constructions (Ongoing & Finished Properties) */}
                 <div
-                  onClick={() => {
-                    navigateTo('properties');
-                    setTimeout(() => {
-                      const el = document.getElementById('building-construction');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }, 120);
-                  }}
+                  onClick={() => navigateTo('constructions')}
                   className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-[10px] font-semibold tracking-widest uppercase text-[#4ade80] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md">
-                        Civil Engineering Division
+                        Ongoing &amp; Finished Works
                       </span>
                       <HardHat className="w-5 h-5 text-[#4ade80] group-hover:scale-110 transition-transform" />
                     </div>
                     <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors mb-3">
-                      Building & Construction
+                      Constructions &amp; Finished Properties
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
-                      Ola Continental executes turnkey civil construction: architectural plans, structural engineering, multi-unit student hostels, luxury duplexes, warehouses, and borehole installations.
+                      Inspect active building sites currently worked on alongside completed turnkey duplexes, student hostels, industrial weighbridges, and corporate estates.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-[#4ade80] group-hover:text-white transition-colors">
-                    <span>Construction Services & Quotes</span>
+                    <span>Open Constructions Portfolio</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
@@ -324,85 +410,54 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Portal Card 5: Due Diligence & Title Protocol */}
+                {/* Portal Card 5: Client Sign Up & Ask Ola AI Access */}
                 <div
-                  onClick={() => navigateTo('verification')}
-                  className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between"
+                  onClick={() => navigateTo('customer-login')}
+                  className="group bg-[#222630] border border-slate-700/70 hover:border-[#F5C451]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-[10px] font-semibold tracking-widest uppercase text-[#38bdf8] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md">
-                        4-Tier Due Diligence
+                      <span className="text-[10px] font-semibold tracking-widest uppercase text-[#F5C451] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md">
+                        Nigeria &amp; Diaspora Access
                       </span>
-                      <ShieldCheck className="w-5 h-5 text-[#38bdf8] group-hover:scale-110 transition-transform" />
+                      <UserCheck className="w-5 h-5 text-[#F5C451] group-hover:scale-110 transition-transform" />
                     </div>
-                    <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors mb-3">
-                      Due Diligence & Soil Verification
+                    <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#F5C451] transition-colors mb-3">
+                      Customer Sign Up &amp; Ask Ola AI
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
-                      Review our rigorous multi-stage title verification blueprint: physical ground inspection, Ministry of Lands cadastral charting, indigenous lineage Baale audits, and civil soil testing.
+                      Register with your Full Name, Phone, Email, and WhatsApp Number to unlock personalized Ola AI real estate and construction guidance across Nigeria and abroad.
                     </p>
                   </div>
-                  <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-[#38bdf8] group-hover:text-white transition-colors">
-                    <span>Open Verification Protocol</span>
+                  <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-[#F5C451] group-hover:text-white transition-colors">
+                    <span>Sign Up or Access Portal</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
 
-                {/* Portal Card 6: Live Testimonials & Client Reviews */}
+                {/* Portal Card 6: Real Estate & Civil Engineering Blogs */}
                 <div
-                  onClick={() => navigateTo('testimonials')}
+                  onClick={() => navigateTo('blogs')}
                   className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-[10px] font-semibold tracking-widest uppercase text-[#38bdf8] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                        <Star className="w-3 h-3 text-[#38bdf8] fill-[#38bdf8]" />
-                        <span>Live Testimonial Hub</span>
+                        <BookOpen className="w-3.5 h-3.5 text-[#38bdf8]" />
+                        <span>Field Journal</span>
                       </span>
-                      <MessageCircle className="w-5 h-5 text-[#38bdf8] group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] text-slate-400 font-mono">Articles</span>
                     </div>
                     <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors mb-3">
-                      Client Reviews & Field Logs
+                      Real Estate &amp; Construction Blogs
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
-                      Read verified feedback from diaspora investors in the UK & USA, LAUTECH university professors, doctors, and landlords. Submit your own live inspection comment directly to the database.
+                      Technical guides written by Engineer Samuel Aleji covering Oyo State cadastral charting, LAUTECH student hostel ROI, BS 8110 structural standards, and remote diaspora building protocols.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-[#38bdf8] group-hover:text-white transition-colors">
-                    <span>Open Reviews & Write Comment</span>
+                    <span>Read Editorial Blogs</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-
-                {/* Portal Card 7: Real Estate & Civil Engineering Blogs */}
-                <div
-                  onClick={() => navigateTo('blogs')}
-                  className="group bg-[#222630] border border-slate-700/70 hover:border-[#38bdf8]/60 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-950/40 cursor-pointer flex flex-col justify-between md:col-span-2 lg:col-span-3"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-semibold tracking-widest uppercase text-[#38bdf8] bg-[#181a20]/80 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                          <BookOpen className="w-3.5 h-3.5 text-[#38bdf8]" />
-                          <span>Field Journal & Engineering Insights</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">Ogbomoso · Lagos · Diaspora</span>
-                      </div>
-                      <h3 className="font-display text-2xl font-bold text-white group-hover:text-[#38bdf8] transition-colors">
-                        Real Estate & Civil Construction Blogs
-                      </h3>
-                      <p className="text-xs text-slate-300 leading-relaxed mt-1 max-w-3xl">
-                        Explore technical guides written by Engineer Samuel Aleji covering Oyo State cadastral charting, LAUTECH student hostel ROI, BS 8110 structural standards, and remote diaspora building protocols.
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 flex items-center gap-3">
-                      <span className="px-4 py-2 text-xs font-semibold text-white bg-[#2563eb] group-hover:bg-[#1d4ed8] rounded-xl transition-colors flex items-center gap-2 shadow-md">
-                        <span>Read Editorial Blogs</span>
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -423,11 +478,11 @@ export default function App() {
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
                   <button
-                    onClick={() => navigateTo('contact')}
-                    className="px-4 py-2.5 text-xs font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-md shadow-[#2563eb]/25"
+                    onClick={() => navigateTo('constructions')}
+                    className="px-4 py-2.5 text-xs font-semibold text-white bg-[#b91c1c] hover:bg-[#991b1b] rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-md"
                   >
-                    <Mail className="w-3.5 h-3.5" />
-                    <span>Contact Executive Desk</span>
+                    <HardHat className="w-3.5 h-3.5" />
+                    <span>Explore Constructions</span>
                   </button>
                   <button
                     onClick={() => setIsChatOpen(true)}
@@ -448,6 +503,15 @@ export default function App() {
                 </div>
               </div>
             </section>
+
+            {/* Dedicated Homepage Blog Section */}
+            <BlogsSection
+              variant="homepage"
+              onOpenViewing={() => handleBookViewing(null)}
+              onOpenChat={() => setIsChatOpen(true)}
+              onNavigateProperties={() => navigateTo('properties')}
+              onViewAllBlogs={() => navigateTo('blogs')}
+            />
           </div>
         )}
 
@@ -470,15 +534,15 @@ export default function App() {
                     <span>Homepage</span>
                   </button>
                   <span className="text-white/30">/</span>
-                  <span className="text-[#38bdf8] font-semibold">About Ola Continental & Engineer Samuel Aleji Profile</span>
+                  <span className="text-[#38bdf8] font-semibold">About Us · Ola Continental &amp; Engineer Samuel Aleji Profile</span>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => navigateTo('contact')}
+                    onClick={() => navigateTo('constructions')}
                     className="text-xs font-medium text-[#bfdbfe] hover:text-white transition-colors cursor-pointer"
                   >
-                    Contact Division →
+                    Constructions Portfolio →
                   </button>
                 </div>
               </div>
@@ -656,46 +720,6 @@ export default function App() {
         )}
 
         {/* =========================================================================
-            VIEW 5: DEDICATED VERIFICATION PAGE (Royal Blue & Light Blue Theme)
-           ========================================================================= */}
-        {currentPage === 'verification' && (
-          <div className="min-h-[80vh] bg-[#07132b]">
-            {/* Dedicated Page Breadcrumb Banner */}
-            <div className="bg-[#0b1e42] border-b border-[#1d4ed8]/30 py-5 px-4 sm:px-6 lg:px-8">
-              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-[#bfdbfe]">
-                  <button
-                    onClick={() => navigateTo('home')}
-                    className="hover:text-[#38bdf8] transition-colors flex items-center gap-1.5 cursor-pointer font-semibold text-white"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-[#38bdf8]" />
-                    <span>Homepage</span>
-                  </button>
-                  <span className="text-white/30">/</span>
-                  <span className="text-[#38bdf8] font-semibold">4-Tier Due Diligence & Soil Verification</span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setIsVaultOpen(true)}
-                    className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#07132b] hover:bg-[#1d4ed8]/30 border border-[#38bdf8]/40 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Open Document Vault
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Standalone Due Diligence & 4-Tier Verification Section */}
-            <VerificationSection
-              onOpenEducation={() => setIsEducationOpen(true)}
-              onOpenVault={() => setIsVaultOpen(true)}
-              onOpenViewing={() => handleBookViewing(null)}
-            />
-          </div>
-        )}
-
-        {/* =========================================================================
             VIEW 6: DEDICATED TESTIMONIALS PAGE (Royal Blue & Light Blue Theme)
            ========================================================================= */}
         {currentPage === 'testimonials' && (
@@ -732,9 +756,9 @@ export default function App() {
         )}
 
         {/* =========================================================================
-            VIEW 7: DEDICATED CONTACT & CONSTRUCTION PAGE (Royal Blue & Light Blue Theme)
+            VIEW 7: DEDICATED CONSTRUCTIONS PAGE (Ongoing Constructions & Finished Properties)
            ========================================================================= */}
-        {currentPage === 'contact' && (
+        {currentPage === 'constructions' && (
           <div className="min-h-[80vh] bg-[#07132b]">
             {/* Dedicated Page Breadcrumb Banner */}
             <div className="bg-[#0b1e42] border-b border-[#1d4ed8]/30 py-5 px-4 sm:px-6 lg:px-8">
@@ -748,12 +772,14 @@ export default function App() {
                     <span>Homepage</span>
                   </button>
                   <span className="text-white/30">/</span>
-                  <span className="text-[#38bdf8] font-semibold">Contact Executive Desk & Building Construction Division</span>
+                  <span className="text-[#38bdf8] font-semibold">
+                    Constructions &amp; Finished Properties Portfolio
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <a
-                    href="https://wa.me/2348033848107?text=Hello%20Engineer%20Samuel%20Aleji,%20I%20am%20inquiring%20about%20Ola%20Continental%20Properties%20and%20Construction"
+                    href="https://wa.me/2348033848107?text=Hello%20Engineer%20Samuel%20Aleji,%20I%20am%20inquiring%20about%20Ola%20Continental%20Constructions%20and%20Finished%20Properties"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs font-medium text-[#4ade80] hover:underline flex items-center gap-1"
@@ -765,8 +791,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Standalone Contact & Building Construction Division Section */}
-            <ContactSection
+            {/* Standalone Constructions Section: Ongoing Constructions & Finished Properties */}
+            <ConstructionsSection
               onOpenViewing={() => handleBookViewing(null)}
               onOpenChat={() => setIsChatOpen(true)}
               onConnectWithAi={(inquiry) => {
@@ -813,6 +839,62 @@ export default function App() {
               onOpenChat={() => setIsChatOpen(true)}
               onNavigateProperties={() => navigateTo('properties')}
             />
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW 9: CUSTOMER LOGIN / SIGN UP SECTION
+           ========================================================================= */}
+        {currentPage === 'customer-login' && (
+          <div className="min-h-[80vh] bg-[#07132b]">
+            <div className="bg-[#0b1e42] border-b border-[#1d4ed8]/30 py-5 px-4 sm:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-[#bfdbfe]">
+                  <button
+                    onClick={() => navigateTo('home')}
+                    className="hover:text-[#38bdf8] transition-colors flex items-center gap-1.5 cursor-pointer font-semibold text-white"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-[#38bdf8]" />
+                    <span>Homepage</span>
+                  </button>
+                  <span className="text-white/30">/</span>
+                  <span className="text-[#F5C451] font-semibold">Customer Sign Up &amp; Ask Ola AI Access</span>
+                </div>
+              </div>
+            </div>
+
+            <CustomerAuthSection
+              customerProfile={customerProfile}
+              onCustomerRegistered={(customer) => setCustomerProfile(customer)}
+              onCustomerSignOut={handleCustomerSignOut}
+              onOpenChat={() => setIsChatOpen(true)}
+              onNavigate={navigateTo}
+            />
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW 10: OWNER ADMIN LOGIN SECTION & REGISTERED CUSTOMERS DIRECTORY
+           ========================================================================= */}
+        {currentPage === 'admin-login' && (
+          <div className="min-h-[80vh] bg-[#07132b]">
+            <div className="bg-[#0b1e42] border-b border-[#1d4ed8]/30 py-5 px-4 sm:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-[#bfdbfe]">
+                  <button
+                    onClick={() => navigateTo('home')}
+                    className="hover:text-[#38bdf8] transition-colors flex items-center gap-1.5 cursor-pointer font-semibold text-white"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-[#38bdf8]" />
+                    <span>Homepage</span>
+                  </button>
+                  <span className="text-white/30">/</span>
+                  <span className="text-[#38bdf8] font-semibold">Real Estate Owner Admin Login &amp; Customer Records</span>
+                </div>
+              </div>
+            </div>
+
+            <AdminSection onNavigate={navigateTo} />
           </div>
         )}
       </main>
@@ -908,6 +990,9 @@ export default function App() {
           onClose={() => setIsChatOpen(false)}
           onOpenViewing={() => handleBookViewing(null)}
           initialInquiry={activeContactInquiry}
+          customerProfile={customerProfile}
+          onCustomerRegistered={(customer) => setCustomerProfile(customer)}
+          onOpenCustomerLoginPage={() => navigateTo('customer-login')}
         />
       )}
 
@@ -923,14 +1008,8 @@ export default function App() {
         </button>
       </div>
 
-      {/* Comprehensive Corporate Footer */}
-      <Footer
-        onNavigate={navigateTo}
-        onOpenEducation={() => setIsEducationOpen(true)}
-        onOpenVault={() => setIsVaultOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenViewing={() => handleBookViewing(null)}
-      />
+      {/* Comprehensive Corporate Footer with Centralized Bottom Testimonials */}
+      <Footer onNavigate={navigateTo} />
     </div>
   );
 }

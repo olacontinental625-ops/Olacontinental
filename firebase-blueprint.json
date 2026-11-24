@@ -1,5 +1,58 @@
 {
   "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Registered customer profile with mandatory contact channels required for Ask Ola AI access and consultation follow-up",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique customer profile identifier",
+          "maxLength": 128
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full name of the customer",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "description": "Primary phone number",
+          "minLength": 5,
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the customer",
+          "minLength": 5,
+          "maxLength": 150
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "WhatsApp contact number",
+          "minLength": 5,
+          "maxLength": 40
+        },
+        "source": {
+          "type": "string",
+          "description": "Registration entry point (Customer Sign Up Page or Ask Ola AI Gate)",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO registration timestamp",
+          "maxLength": 50
+        },
+        "status": {
+          "type": "string",
+          "description": "Client follow-up status",
+          "maxLength": 40
+        }
+      },
+      "required": ["id", "fullName", "phone", "email", "whatsapp", "createdAt", "source"]
+    },
     "Lead": {
       "title": "Lead",
       "description": "Customer real estate brief and contact submission",
@@ -8,17 +61,17 @@
         "name": {
           "type": "string",
           "description": "Full name of the client",
-          "maxLength": 100
+          "maxLength": 120
         },
         "phone": {
           "type": "string",
           "description": "Phone or WhatsApp contact number",
-          "maxLength": 30
+          "maxLength": 40
         },
         "email": {
           "type": "string",
           "description": "Email address of the client",
-          "maxLength": 100
+          "maxLength": 150
         },
         "purpose": {
           "type": "string",
@@ -28,7 +81,7 @@
         "propertyType": {
           "type": "string",
           "description": "Preferred property category",
-          "maxLength": 50
+          "maxLength": 80
         },
         "corridor": {
           "type": "string",
@@ -38,7 +91,7 @@
         "budget": {
           "type": "string",
           "description": "Target budget range",
-          "maxLength": 50
+          "maxLength": 80
         },
         "message": {
           "type": "string",
@@ -53,7 +106,7 @@
         "status": {
           "type": "string",
           "description": "Status of the inquiry",
-          "maxLength": 30
+          "maxLength": 40
         }
       },
       "required": ["name", "phone"]
@@ -76,27 +129,27 @@
         "clientName": {
           "type": "string",
           "description": "Full name of the inspecting client",
-          "maxLength": 100
+          "maxLength": 120
         },
         "phone": {
           "type": "string",
           "description": "WhatsApp contact number",
-          "maxLength": 30
+          "maxLength": 40
         },
         "email": {
           "type": "string",
           "description": "Email address",
-          "maxLength": 100
+          "maxLength": 150
         },
         "preferredDate": {
           "type": "string",
           "description": "Scheduled inspection date",
-          "maxLength": 50
+          "maxLength": 60
         },
         "inspectionType": {
           "type": "string",
           "description": "Walkthrough format (Physical On-Site Tuesday, Diaspora 4K Video, etc.)",
-          "maxLength": 100
+          "maxLength": 120
         },
         "notes": {
           "type": "string",
@@ -111,7 +164,7 @@
         "status": {
           "type": "string",
           "description": "Appointment status",
-          "maxLength": 30
+          "maxLength": 40
         }
       },
       "required": ["clientName", "phone", "preferredDate"]
@@ -129,7 +182,7 @@
         "clientName": {
           "type": "string",
           "description": "Name of the client or surveyor",
-          "maxLength": 100
+          "maxLength": 120
         },
         "rating": {
           "type": "number",
@@ -138,7 +191,7 @@
         "inspectionDate": {
           "type": "string",
           "description": "Date or period of the physical walkthrough",
-          "maxLength": 50
+          "maxLength": 60
         },
         "comment": {
           "type": "string",
@@ -151,9 +204,220 @@
         }
       },
       "required": ["clientName", "rating", "comment"]
+    },
+    "ContactInquiry": {
+      "title": "ContactInquiry",
+      "description": "Direct inquiry from Constructions and Contact intake forms",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Inquiry document id",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name",
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number",
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address",
+          "maxLength": 150
+        },
+        "serviceType": {
+          "type": "string",
+          "description": "Requested construction or real estate service",
+          "maxLength": 100
+        },
+        "corridor": {
+          "type": "string",
+          "description": "Location or corridor",
+          "maxLength": 100
+        },
+        "budget": {
+          "type": "string",
+          "description": "Budget range",
+          "maxLength": 80
+        },
+        "message": {
+          "type": "string",
+          "description": "Project details or inquiry message",
+          "maxLength": 1500
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp",
+          "maxLength": 50
+        }
+      },
+      "required": ["name", "phone"]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "Editorial market intelligence and civil engineering field articles",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Article identifier",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Article headline",
+          "maxLength": 200
+        },
+        "excerpt": {
+          "type": "string",
+          "description": "Short article summary",
+          "maxLength": 500
+        },
+        "category": {
+          "type": "string",
+          "description": "Editorial category",
+          "maxLength": 60
+        },
+        "author": {
+          "type": "string",
+          "description": "Author name",
+          "maxLength": 100
+        },
+        "authorRole": {
+          "type": "string",
+          "description": "Author title",
+          "maxLength": 100
+        },
+        "publishedAt": {
+          "type": "string",
+          "description": "Display publication date",
+          "maxLength": 60
+        },
+        "readTime": {
+          "type": "string",
+          "description": "Estimated read duration",
+          "maxLength": 30
+        },
+        "coverImage": {
+          "type": "string",
+          "description": "Asset URL",
+          "maxLength": 300
+        },
+        "corridorTag": {
+          "type": "string",
+          "description": "Geographical tag",
+          "maxLength": 100
+        }
+      },
+      "required": ["id", "title", "excerpt", "category"]
+    },
+    "ConstructionProject": {
+      "title": "ConstructionProject",
+      "description": "Live ongoing construction project or finished property published by the owner",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Project identifier",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Project title",
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "enum": ["ongoing", "finished"],
+          "description": "Construction status category"
+        },
+        "location": {
+          "type": "string",
+          "description": "Corridor or site location",
+          "maxLength": 120
+        },
+        "phaseOrType": {
+          "type": "string",
+          "description": "Engineering phase or property type",
+          "maxLength": 100
+        },
+        "specs": {
+          "type": "string",
+          "description": "Structural or property specifications",
+          "maxLength": 200
+        },
+        "completionLabel": {
+          "type": "string",
+          "description": "Completion percentage or delivery year",
+          "maxLength": 60
+        },
+        "image": {
+          "type": "string",
+          "description": "Project image path or URL",
+          "maxLength": 300
+        },
+        "description": {
+          "type": "string",
+          "description": "Project narrative",
+          "maxLength": 1000
+        }
+      },
+      "required": ["id", "title", "category", "location"]
+    },
+    "PropertyListing": {
+      "title": "PropertyListing",
+      "description": "Dynamic property listing managed from the Owner Admin Portal",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Property identifier",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Property title",
+          "maxLength": 200
+        },
+        "purpose": {
+          "type": "string",
+          "enum": ["Buy", "Rent", "Lease", "Invest"],
+          "description": "Listing purpose"
+        },
+        "type": {
+          "type": "string",
+          "description": "Property category",
+          "maxLength": 60
+        },
+        "corridor": {
+          "type": "string",
+          "description": "Operating corridor",
+          "maxLength": 100
+        },
+        "priceDisplay": {
+          "type": "string",
+          "description": "Formatted price",
+          "maxLength": 60
+        },
+        "status": {
+          "type": "string",
+          "description": "Listing availability status",
+          "maxLength": 40
+        }
+      },
+      "required": ["id", "title", "purpose", "type", "corridor", "priceDisplay", "status"]
     }
   },
   "firestore": {
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Registered customer profiles with mandatory Full Name, Phone, Email, and WhatsApp Number"
+    },
     "/leads/{leadId}": {
       "schema": "Lead",
       "description": "Collection of client briefs and inquiry leads"
@@ -165,6 +429,22 @@
     "/reviews/{reviewId}": {
       "schema": "PropertyReview",
       "description": "Collection of verified inspection reviews and surveyor field notes"
+    },
+    "/contacts/{contactId}": {
+      "schema": "ContactInquiry",
+      "description": "Collection of direct construction and real estate inquiries"
+    },
+    "/blogs/{blogId}": {
+      "schema": "BlogPost",
+      "description": "Collection of published real estate and civil engineering articles"
+    },
+    "/constructions/{projectId}": {
+      "schema": "ConstructionProject",
+      "description": "Collection of live ongoing constructions and finished properties"
+    },
+    "/properties/{propertyId}": {
+      "schema": "PropertyListing",
+      "description": "Collection of dynamic property listings managed by the owner"
     }
   }
 }

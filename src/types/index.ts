@@ -1,4 +1,13 @@
-export type PageType = 'home' | 'about' | 'properties' | 'corridors' | 'verification' | 'testimonials' | 'contact' | 'blogs';
+export type PageType =
+  | 'home'
+  | 'about'
+  | 'properties'
+  | 'corridors'
+  | 'testimonials'
+  | 'constructions'
+  | 'blogs'
+  | 'customer-login'
+  | 'admin-login';
 
 export type PropertyPurpose = 'All' | 'Buy' | 'Rent' | 'Lease' | 'Invest';
 
@@ -128,3 +137,28 @@ export interface ContactInquiry {
   message: string;
   createdAt?: string;
 }
+
+export interface CustomerProfile {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  whatsapp: string;
+  createdAt: string;
+  source: string;
+  status?: string;
+}
+
+export interface ConstructionProject {
+  id: string;
+  title: string;
+  category: 'ongoing' | 'finished';
+  location: string;
+  phaseOrType: string;
+  specs: string;
+  completionLabel: string;
+  image: string;
+  description: string;
+  createdAt?: string;
+}
+

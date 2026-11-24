@@ -19,11 +19,14 @@ import {
 import { BlogPost, BlogCategory } from '../types';
 import { BLOG_POSTS } from '../data/blogs';
 import { listenToBlogs } from '../lib/firebase';
+import { OlaLogoMark } from './OlaLogoMark';
 
 interface BlogsSectionProps {
   onOpenViewing: () => void;
   onOpenChat: () => void;
   onNavigateProperties: () => void;
+  variant?: 'page' | 'homepage';
+  onViewAllBlogs?: () => void;
 }
 
 const CATEGORIES: BlogCategory[] = [
@@ -39,7 +42,10 @@ export const BlogsSection: React.FC<BlogsSectionProps> = ({
   onOpenViewing,
   onOpenChat,
   onNavigateProperties,
+  variant = 'page',
+  onViewAllBlogs,
 }) => {
+  const isHomePreview = variant === 'homepage';
   const [selectedCategory, setSelectedCategory] = useState<BlogCategory>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [liveBlogs, setLiveBlogs] = useState<BlogPost[]>([]);
@@ -122,34 +128,47 @@ export const BlogsSection: React.FC<BlogsSectionProps> = ({
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
+  const visibleRemainingPosts = isHomePreview ? remainingPosts.slice(0, 3) : remainingPosts;
+
   return (
-    <section className="py-16 bg-[#07132b] text-[#f0f9ff] min-h-[85vh] relative overflow-hidden">
+    <section
+      id="blogs-section"
+      className={`py-16 relative overflow-hidden ${
+        isHomePreview
+          ? 'bg-[#181a20] text-slate-100 border-t border-slate-700/60'
+          : 'bg-[#07132b] text-[#f0f9ff] min-h-[85vh]'
+      }`}
+    >
       {/* Ambient architectural lighting */}
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-20 left-10 w-96 h-96 bg-[#38bdf8]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/12 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-[#b91c1c]/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Editorial Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10">
           <div className="max-w-3xl">
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold tracking-widest uppercase text-[#38bdf8] mb-3">
-              <BookOpen className="w-4 h-4" />
-              <span>FIELD JOURNAL & ENGINEERING INSIGHTS</span>
-              <span aria-hidden="true" className="text-white/40">·</span>
-              <span className="font-data text-xs text-[#93c5fd]/80">OGBOMOSO & LAGOS</span>
+            <div className="mb-4">
+              <OlaLogoMark variant="section" />
             </div>
 
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">
-              Real Estate & Civil Construction Blogs
-            </h1>
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold tracking-widest uppercase text-[#38bdf8] mb-2">
+              <BookOpen className="w-4 h-4" />
+              <span>FIELD JOURNAL &amp; ENGINEERING INSIGHTS</span>
+              <span aria-hidden="true" className="text-white/40">·</span>
+              <span className="font-data text-xs text-[#93c5fd]/80">OGBOMOSO &amp; LAGOS</span>
+            </div>
 
-            <p className="mt-4 text-base sm:text-lg text-[#bfdbfe] leading-relaxed font-normal">
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
+              Real Estate &amp; Civil Construction Blog
+            </h2>
+
+            <p className="mt-3 text-sm sm:text-base text-[#bfdbfe] leading-relaxed font-normal">
               Practical field intelligence from Engineer Samuel Aleji covering Oyo State cadastral charting, LAUTECH student hostel ROI, BS 8110 building engineering, and safe diaspora acquisitions.
             </p>
           </div>
 
-          {/* Search Input */}
-          <div className="w-full lg:w-80 shrink-0">
+          {/* Search Input or View All Link */}
+          <div className="w-full lg:w-80 shrink-0 space-y-3">
             <div className="relative">
               <Search className="w-4 h-4 text-[#38bdf8] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -160,6 +179,15 @@ export const BlogsSection: React.FC<BlogsSectionProps> = ({
                 className="w-full pl-10 pr-4 py-3 bg-[#0b1e42] border border-[#1d4ed8]/50 rounded-xl text-xs text-white placeholder-[#93c5fd]/60 focus:outline-none focus:border-[#38bdf8] shadow-lg"
               />
             </div>
+            {isHomePreview && onViewAllBlogs && (
+              <button
+                onClick={onViewAllBlogs}
+                className="w-full py-2.5 px-4 bg-[#b91c1c] hover:bg-[#991b1b] text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow"
+              >
+                <span>Open Full Blog Archive ({allPosts.length} Articles)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -275,9 +303,9 @@ export const BlogsSection: React.FC<BlogsSectionProps> = ({
             )}
 
             {/* Editorial Articles Grid */}
-            {remainingPosts.length > 0 && (
+            {visibleRemainingPosts.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
-                {remainingPosts.map((post) => (
+                {visibleRemainingPosts.map((post) => (
                   <article
                     key={post.id}
                     onClick={() => setActiveArticle(post)}
